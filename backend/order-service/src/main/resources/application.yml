@@ -1,0 +1,35 @@
+server:
+  port: 8003
+
+spring:
+  application:
+    name: order-service
+  
+  datasource:
+    url: jdbc:postgresql://postgres-order:5432/orders_db
+    username: user
+    password: password
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+logging:
+  level:
+    com.microservices.order: DEBUG
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      user-service:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+  retry:
+    instances:
+      user-service:
+        max-attempts: 3
+        wait-duration: 1s

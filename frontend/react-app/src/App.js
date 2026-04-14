@@ -50,6 +50,24 @@ function App() {
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   
+  // État pour les commandes
+  const [orders, setOrders] = useState([]);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [cart, setCart] = useState([]);
+  const [shippingAddress, setShippingAddress] = useState({
+    street: '',
+    city: '',
+    postalCode: '',
+    country: 'France'
+  });
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [orderLoading, setOrderLoading] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [orderStats, setOrderStats] = useState(null);
+  const [couponCode, setCouponCode] = useState('');
+  const [discount, setDiscount] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState('card');
+  
   // État pour le chatbot
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
@@ -63,22 +81,236 @@ function App() {
       fetchCurrentUser();
       fetchUsers();
       fetchProducts();
+      fetchOrders();
+      fetchOrderStats();
     }
   }, [token]);
 
   // Vérifier tous les services
-  const checkAllServices = async () => {
-    const updatedServices = [...services];
-    for (let i = 0; i < updatedServices.length; i++) {
-      try {
-        const res = await axios.get(`http://localhost:${updatedServices[i].port}/health`, { timeout: 5000 });
-        updatedServices[i].status = res.status === 200 ? 'healthy' : 'unhealthy';
-      } catch (error) {
-        updatedServices[i].status = 'unhealthy';
-      }
+// Dans checkAllServices, il ne faut pas appeler directement les services
+// mais utiliser l'API Gateway ou simplement vérifier via le health endpoint de l'API Gateway
+
+// Version corrigée de checkAllServices
+// Vérifier tous les services via l'API Gateway
+const checkAllServices = async () => {
+  const updatedServices = [...services];
+  for (let i = 0; i < updatedServices.length; i++) {
+    try {
+      // Utiliser l'API Gateway au lieu des ports directs
+      const url = `${API_GATEWAY}/${updatedServices[i].name}/health`;
+      console.log(`Checking service: ${url}`);
+      
+      const res = await axios.get(url, { 
+        timeout: 5000,
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      updatedServices[i].status = res.status === 200 ? 'healthy' : 'unhealthy';
+    } catch (error) {
+      console.log(`Service ${updatedServices[i].name} is unavailable`);
+      updatedServices[i].status = 'unhealthy';
     }
-    setServices(updatedServices);
+  }
+  setServices(updatedServices);
+};
+
+  // ============================================
+  // ORDER MANAGEMENT
+  // ============================================
+
+  // Récupérer les commandes
+  const fetchOrders = async () => {
+    if (!currentUser) return;
+    setOrderLoading(true);
+    try {
+      const res = await axios.get(`${API_GATEWAY}/order/orders/user/${currentUser.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setOrders(res.data || []);
+    } catch (error) {
+      console.error('Erreur fetch orders:', error);
+      setOrders([]);
+    }
+    setOrderLoading(false);
   };
+
+  // Récupérer une commande spécifique
+// Récupérer une commande spécifique - Version corrigée
+const fetchOrderDetails = async (orderId) => {
+  if (!orderId) return;
+  try {
+    const res = await axios.get(`${API_GATEWAY}/order/orders/${orderId}`, {
+      params: { userId: currentUser.id },
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.data) {
+      setSelectedOrder(res.data);
+    }
+  } catch (error) {
+    console.error('Erreur fetch order details:', error);
+  }
+};
+
+  // Récupérer les statistiques
+  const fetchOrderStats = async () => {
+    if (!currentUser) return;
+    try {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+      
+      const res = await axios.get(`${API_GATEWAY}/order/orders/statistics`, {
+        params: {
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString()
+        },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setOrderStats(res.data);
+    } catch (error) {
+      console.error('Erreur fetch stats:', error);
+    }
+  };
+
+  // Calculer les totaux du panier
+  const getCartTotals = () => {
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const tax = subtotal * 0.20;
+    const shipping = subtotal > 50 ? 0 : 5.99;
+    const total = subtotal + tax + shipping - discount;
+    return { subtotal, tax, shipping, total };
+  };
+
+  // Ajouter au panier
+  const addToCart = (product) => {
+    const existingItem = cart.find(item => item.id === product.id);
+    if (existingItem) {
+      setCart(cart.map(item =>
+        item.id === product.id
+          ? { ...item, quantity: item.quantity + 1 }
+          : item
+      ));
+    } else {
+      setCart([...cart, { ...product, quantity: 1 }]);
+    }
+    alert(`✅ ${product.name} ajouté au panier`);
+  };
+
+  // Retirer du panier
+  const removeFromCart = (productId) => {
+    setCart(cart.filter(item => item.id !== productId));
+  };
+
+  // Mettre à jour la quantité
+  const updateQuantity = (productId, quantity) => {
+    if (quantity <= 0) {
+      removeFromCart(productId);
+    } else {
+      setCart(cart.map(item =>
+        item.id === productId ? { ...item, quantity } : item
+      ));
+    }
+  };
+
+  // Appliquer un coupon
+  const applyCoupon = () => {
+    if (couponCode === 'WELCOME10') {
+      const { subtotal } = getCartTotals();
+      setDiscount(subtotal * 0.10);
+      alert('✅ Code promo WELCOME10 appliqué (-10%)');
+    } else if (couponCode === 'SAVE20') {
+      const { subtotal } = getCartTotals();
+      setDiscount(subtotal * 0.20);
+      alert('✅ Code promo SAVE20 appliqué (-20%)');
+    } else if (couponCode) {
+      alert('❌ Code promo invalide');
+    }
+  };
+
+  // Créer une commande
+  const createOrder = async () => {
+    if (cart.length === 0) {
+      alert('Votre panier est vide');
+      return;
+    }
+    
+    if (!shippingAddress.street || !shippingAddress.city) {
+      alert('Veuillez entrer une adresse de livraison complète');
+      return;
+    }
+    
+    setOrderLoading(true);
+    try {
+      const orderData = {
+        userId: currentUser.id,
+        email: currentUser.email,
+        items: cart.map(item => ({
+          productId: item.id.toString(),
+          productName: item.name,
+          quantity: item.quantity,
+          unitPrice: item.price
+        })),
+        shippingAddress: `${shippingAddress.street}, ${shippingAddress.postalCode} ${shippingAddress.city}, ${shippingAddress.country}`,
+        phoneNumber: phoneNumber || '',
+        paymentMethod: paymentMethod,
+        couponCode: couponCode || null
+      };
+      
+      const res = await axios.post(`${API_GATEWAY}/order/orders`, orderData, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+      });
+      
+      alert(`✅ Commande #${res.data.orderNumber || res.data.id.slice(-8)} créée avec succès!`);
+      setCart([]);
+      setCouponCode('');
+      setDiscount(0);
+      setShippingAddress({ street: '', city: '', postalCode: '', country: 'France' });
+      setPhoneNumber('');
+      await fetchOrders();
+      await fetchOrderStats();
+      setActiveTab('orders');
+    } catch (error) {
+      console.error('Erreur création commande:', error);
+      alert(`❌ Erreur: ${error.response?.data?.message || error.message}`);
+    }
+    setOrderLoading(false);
+  };
+
+  // Filtrer les commandes par statut
+// Filtrer les commandes par statut - Version corrigée
+const getFilteredOrders = () => {
+  if (!orders || orders.length === 0) return [];
+  if (selectedStatus === 'all') return orders;
+  return orders.filter(order => order && order.status === selectedStatus);
+};
+
+  // Obtenir la classe CSS pour le statut
+ // Obtenir la classe CSS pour le statut - Version corrigée
+const getStatusClass = (status) => {
+  if (!status) return 'status-pending';
+  const statusMap = {
+    'PENDING': 'status-pending',
+    'CONFIRMED': 'status-confirmed',
+    'PROCESSING': 'status-processing',
+    'SHIPPED': 'status-shipped',
+    'DELIVERED': 'status-delivered',
+    'CANCELLED': 'status-cancelled'
+  };
+  return statusMap[status] || 'status-pending';
+};
+
+// Obtenir le libellé du statut en français - Version corrigée
+const getStatusLabel = (status) => {
+  if (!status) return 'En attente';
+  const statusMap = {
+    'PENDING': 'En attente',
+    'CONFIRMED': 'Confirmée',
+    'PROCESSING': 'En traitement',
+    'SHIPPED': 'Expédiée',
+    'DELIVERED': 'Livrée',
+    'CANCELLED': 'Annulée'
+  };
+  return statusMap[status] || status;
+};
 
   // ============================================
   // PRODUCT MANAGEMENT
@@ -98,52 +330,41 @@ function App() {
     setProductLoading(false);
   };
 
-  // Rechercher des produits - Version corrigée
-// Rechercher des produits - Version finale corrigée
-const searchProducts = async () => {
-  setProductLoading(true);
-  try {
-    const params = new URLSearchParams();
-    
-    if (searchQuery && searchQuery.trim() !== '' && searchQuery !== '*') {
-      params.append('q', searchQuery.trim());
+  // Rechercher des produits
+  const searchProducts = async () => {
+    setProductLoading(true);
+    try {
+      const params = new URLSearchParams();
+      
+      if (searchQuery && searchQuery.trim() !== '' && searchQuery !== '*') {
+        params.append('q', searchQuery.trim());
+      }
+      if (searchCategory && searchCategory !== '') {
+        params.append('category', searchCategory);
+      }
+      if (searchMinPrice && searchMinPrice !== '') {
+        params.append('min_price', searchMinPrice);
+      }
+      if (searchMaxPrice && searchMaxPrice !== '') {
+        params.append('max_price', searchMaxPrice);
+      }
+      
+      const queryString = params.toString();
+      const url = queryString 
+        ? `${API_GATEWAY}/product/products/search?${queryString}`
+        : `${API_GATEWAY}/product/products`;
+      
+      const res = await axios.get(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      
+      setProducts(res.data.products || []);
+    } catch (error) {
+      console.error('❌ Erreur recherche:', error);
+      setProducts([]);
     }
-    if (searchCategory && searchCategory !== '') {
-      params.append('category', searchCategory);
-    }
-    if (searchMinPrice && searchMinPrice !== '') {
-      params.append('min_price', searchMinPrice);
-    }
-    if (searchMaxPrice && searchMaxPrice !== '') {
-      params.append('max_price', searchMaxPrice);
-    }
-    
-    const queryString = params.toString();
-    // Correction: encodage correct de l'URL
-    const url = queryString 
-      ? `${API_GATEWAY}/product/products/search?${queryString}`
-      : `${API_GATEWAY}/product/products`;
-    
-    console.log('🔍 URL encodée:', url);
-    console.log('🔍 Paramètres:', {
-      searchQuery,
-      searchCategory,
-      searchMinPrice,
-      searchMaxPrice
-    });
-    
-    const res = await axios.get(url, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {}
-    });
-    
-    console.log('✅ Résultats trouvés:', res.data.products?.length);
-    setProducts(res.data.products || []);
-  } catch (error) {
-    console.error('❌ Erreur détaillée:', error.response?.data || error.message);
-    setProducts([]);
-  }
-  setProductLoading(false);
-};
+    setProductLoading(false);
+  };
 
   // Créer un produit
   const createProduct = async () => {
@@ -329,6 +550,8 @@ const searchProducts = async () => {
       await fetchCurrentUser(newToken);
       await fetchUsers(newToken);
       await fetchProducts();
+      await fetchOrders();
+      await fetchOrderStats();
       setActiveTab('products');
     } catch (error) {
       alert(`❌ Erreur: ${error.response?.data?.detail || error.message}`);
@@ -343,6 +566,8 @@ const searchProducts = async () => {
     setCurrentUser(null);
     setUsers([]);
     setProducts([]);
+    setOrders([]);
+    setCart([]);
     setUsername('');
     setPassword('');
     alert('👋 Déconnecté');
@@ -408,6 +633,9 @@ const searchProducts = async () => {
 
   // Categories disponibles
   const categories = ['Electronics', 'Clothing', 'Books', 'Home', 'Sports', 'Toys', 'General'];
+  const statusOptions = ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+
+  const { subtotal, tax, shipping, total } = getCartTotals();
 
   return (
     <div className="App">
@@ -422,6 +650,12 @@ const searchProducts = async () => {
           </button>
           <button className={activeTab === 'products' ? 'active' : ''} onClick={() => { setActiveTab('products'); fetchProducts(); }}>
             📦 Products
+          </button>
+          <button className={activeTab === 'cart' ? 'active' : ''} onClick={() => setActiveTab('cart')}>
+            🛒 Cart ({cart.length})
+          </button>
+          <button className={activeTab === 'orders' ? 'active' : ''} onClick={() => { setActiveTab('orders'); fetchOrders(); }}>
+            📋 Orders ({orders.length})
           </button>
           <button className={activeTab === 'tester' ? 'active' : ''} onClick={() => setActiveTab('tester')}>
             🧪 API Tester
@@ -484,6 +718,27 @@ const searchProducts = async () => {
                 </div>
               </div>
             )}
+
+            {/* Statistiques des commandes */}
+            {orderStats && orderStats.totalOrders !== undefined && (
+              <div className="order-stats">
+                <h2>📊 Statistiques (30 derniers jours)</h2>
+                <div className="stats-grid">
+                  <div className="stat-card">
+                    <div className="stat-value">{orderStats.totalRevenue?.toFixed(2) || 0} €</div>
+                    <div className="stat-label">Chiffre d'affaires</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-value">{orderStats.totalOrders || 0}</div>
+                    <div className="stat-label">Commandes</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-value">{orderStats.averageOrderValue?.toFixed(2) || 0} €</div>
+                    <div className="stat-label">Panier moyen</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -491,13 +746,12 @@ const searchProducts = async () => {
         {activeTab === 'products' && isAuthenticated && (
           <div className="products-section">
             <div className="products-header">
-              <h2>📦 Gestion des Produits</h2>
+              <h2>📦 Catalogue Produits</h2>
               <button className="btn-primary" onClick={() => { setShowProductForm(true); setEditingProduct(null); setProductForm({ name: '', description: '', price: '', stock: '', category: '' }); }}>
                 + Nouveau Produit
               </button>
             </div>
 
-            {/* Search Bar */}
             <div className="search-bar">
               <input
                 type="text"
@@ -526,7 +780,6 @@ const searchProducts = async () => {
               <button onClick={() => { setSearchQuery(''); setSearchCategory(''); setSearchMinPrice(''); setSearchMaxPrice(''); fetchProducts(); }}>🔄 Réinitialiser</button>
             </div>
 
-            {/* Product Form Modal */}
             {showProductForm && (
               <div className="modal">
                 <div className="modal-content">
@@ -568,7 +821,6 @@ const searchProducts = async () => {
               </div>
             )}
 
-            {/* Products Grid */}
             {productLoading ? (
               <div className="loading">Chargement des produits...</div>
             ) : (
@@ -590,6 +842,7 @@ const searchProducts = async () => {
                           <span className="product-category">{product.category || 'General'}</span>
                         </div>
                         <div className="product-actions">
+                          <button onClick={() => addToCart(product)}>🛒 Ajouter au panier</button>
                           <button onClick={() => updateStock(product.id, 1, 'decrement')}>➖ Vendre</button>
                           <button onClick={() => updateStock(product.id, 1, 'increment')}>➕ Réapprovisionner</button>
                           <button onClick={() => editProduct(product)}>✏️ Modifier</button>
@@ -603,6 +856,211 @@ const searchProducts = async () => {
             )}
           </div>
         )}
+
+        {/* Cart */}
+        {activeTab === 'cart' && isAuthenticated && (
+          <div className="cart-section">
+            <h2>🛒 Mon Panier</h2>
+            {cart.length === 0 ? (
+              <div className="empty-cart">
+                <p>Votre panier est vide</p>
+                <button onClick={() => setActiveTab('products')}>🛍️ Voir les produits</button>
+              </div>
+            ) : (
+              <>
+                <div className="cart-items">
+                  {cart.map((item) => (
+                    <div key={item.id} className="cart-item">
+                      <div className="cart-item-info">
+                        <h3>{item.name}</h3>
+                        <p>{item.price} €</p>
+                      </div>
+                      <div className="cart-item-quantity">
+                        <button onClick={() => updateQuantity(item.id, item.quantity - 1)}>-</button>
+                        <span>{item.quantity}</span>
+                        <button onClick={() => updateQuantity(item.id, item.quantity + 1)}>+</button>
+                      </div>
+                      <div className="cart-item-total">
+                        {(item.price * item.quantity).toFixed(2)} €
+                      </div>
+                      <button onClick={() => removeFromCart(item.id)}>🗑️</button>
+                    </div>
+                  ))}
+                </div>
+                <div className="cart-summary">
+                  <div className="cart-totals">
+                    <div>Sous-total: <span>{subtotal.toFixed(2)} €</span></div>
+                    <div>TVA (20%): <span>{tax.toFixed(2)} €</span></div>
+                    <div>Livraison: <span>{shipping === 0 ? 'Gratuite' : shipping.toFixed(2) + ' €'}</span></div>
+                    {discount > 0 && <div>Réduction: <span>-{discount.toFixed(2)} €</span></div>}
+                    <div className="total">Total: <span>{total.toFixed(2)} €</span></div>
+                  </div>
+                  
+                  <div className="shipping-info">
+                    <input
+                      type="text"
+                      placeholder="Adresse *"
+                      value={shippingAddress.street}
+                      onChange={(e) => setShippingAddress({ ...shippingAddress, street: e.target.value })}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Ville *"
+                      value={shippingAddress.city}
+                      onChange={(e) => setShippingAddress({ ...shippingAddress, city: e.target.value })}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Code postal *"
+                      value={shippingAddress.postalCode}
+                      onChange={(e) => setShippingAddress({ ...shippingAddress, postalCode: e.target.value })}
+                    />
+                    <input
+                      type="tel"
+                      placeholder="Téléphone"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div className="coupon-section">
+                    <input
+                      type="text"
+                      placeholder="Code promo"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value)}
+                    />
+                    <button onClick={applyCoupon}>Appliquer</button>
+                  </div>
+                  
+                  <div className="payment-methods">
+                    <label>
+                      <input type="radio" value="card" checked={paymentMethod === 'card'} onChange={(e) => setPaymentMethod(e.target.value)} />
+                      💳 Carte bancaire
+                    </label>
+                    <label>
+                      <input type="radio" value="paypal" checked={paymentMethod === 'paypal'} onChange={(e) => setPaymentMethod(e.target.value)} />
+                      📱 PayPal
+                    </label>
+                  </div>
+                  
+                  <button className="btn-primary" onClick={createOrder} disabled={orderLoading}>
+                    {orderLoading ? 'Création...' : '✅ Passer la commande'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Orders */}
+// Modifie la section d'affichage des commandes dans App.js
+
+{/* Orders */}
+{activeTab === 'orders' && isAuthenticated && (
+  <div className="orders-section">
+    <div className="orders-header">
+      <h2>📋 Mes Commandes</h2>
+      <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
+        <option value="all">Tous les statuts</option>
+        {statusOptions.map(status => <option key={status} value={status}>{status}</option>)}
+      </select>
+    </div>
+    
+    {orderLoading ? (
+      <div className="loading">Chargement des commandes...</div>
+    ) : (
+      <div className="orders-list">
+        {!getFilteredOrders() || getFilteredOrders().length === 0 ? (
+          <div className="no-orders">Aucune commande trouvée</div>
+        ) : (
+          getFilteredOrders().map((order) => (
+            <div key={order?.id || Math.random()} className="order-card">
+              <div className="order-header">
+                <div>
+                  <strong>Commande #{order?.orderNumber || order?.id?.slice(-8) || 'N/A'}</strong>
+                  <span className={`order-status ${getStatusClass(order?.status)}`}>
+                    {getStatusLabel(order?.status)}
+                  </span>
+                </div>
+                <div className="order-date">
+                  {order?.createdAt ? new Date(order.createdAt).toLocaleDateString('fr-FR') : 'Date inconnue'}
+                </div>
+              </div>
+              <div className="order-items">
+                {order?.items && order.items.length > 0 ? (
+                  order.items.map((item, idx) => (
+                    <div key={idx} className="order-item">
+                      <span>{item?.productName || 'Produit'} x {item?.quantity || 0}</span>
+                      <span>{item?.subtotal?.toFixed(2) || '0.00'} €</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="order-item">Aucun article</div>
+                )}
+              </div>
+              <div className="order-footer">
+                <div className="order-total">
+                  <strong>Total: {order?.totalAmount?.toFixed(2) || '0.00'} €</strong>
+                </div>
+                {order?.shippingAddress && (
+                  <div className="order-shipping">
+                    📍 Livraison: {order.shippingAddress}
+                  </div>
+                )}
+                <button 
+                  className="order-details-btn"
+                  onClick={() => order?.id && fetchOrderDetails(order.id)}
+                >
+                  📄 Voir détails
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    )}
+
+    {/* Modal Détails Commande */}
+    {selectedOrder && (
+      <div className="modal" onClick={() => setSelectedOrder(null)}>
+        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <h3>Détails de la commande</h3>
+            <button className="close-btn" onClick={() => setSelectedOrder(null)}>✕</button>
+          </div>
+          <div className="modal-body">
+            <p><strong>Numéro:</strong> {selectedOrder?.orderNumber || 'N/A'}</p>
+            <p><strong>Date:</strong> {selectedOrder?.createdAt ? new Date(selectedOrder.createdAt).toLocaleString('fr-FR') : 'Date inconnue'}</p>
+            <p><strong>Statut:</strong> <span className={`order-status ${getStatusClass(selectedOrder?.status)}`}>{getStatusLabel(selectedOrder?.status)}</span></p>
+            <p><strong>Adresse de livraison:</strong> {selectedOrder?.shippingAddress || 'Non renseignée'}</p>
+            <p><strong>Téléphone:</strong> {selectedOrder?.phoneNumber || 'Non renseigné'}</p>
+            <hr />
+            <h4>Articles commandés</h4>
+            {selectedOrder?.items && selectedOrder.items.length > 0 ? (
+              selectedOrder.items.map((item, idx) => (
+                <div key={idx} className="order-detail-item">
+                  <span>{item?.productName || 'Produit'}</span>
+                  <span>{item?.quantity || 0} x {item?.unitPrice?.toFixed(2) || '0.00'} €</span>
+                  <span><strong>{item?.subtotal?.toFixed(2) || '0.00'} €</strong></span>
+                </div>
+              ))
+            ) : (
+              <div>Aucun article</div>
+            )}
+            <hr />
+            <div className="order-detail-totals">
+              <p>Sous-total: {selectedOrder?.subtotal?.toFixed(2) || '0.00'} €</p>
+              <p>TVA (20%): {selectedOrder?.taxAmount?.toFixed(2) || '0.00'} €</p>
+              <p>Livraison: {selectedOrder?.shippingCost?.toFixed(2) || '0.00'} €</p>
+              <p className="total"><strong>Total: {selectedOrder?.totalAmount?.toFixed(2) || '0.00'} €</strong></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+)}
 
         {/* API Tester */}
         {activeTab === 'tester' && (
@@ -626,7 +1084,7 @@ const searchProducts = async () => {
                 type="text" 
                 value={endpoint} 
                 onChange={(e) => setEndpoint(e.target.value)}
-                placeholder="Endpoint (ex: products, health)"
+                placeholder="Endpoint (ex: products, health, orders)"
               />
               <button onClick={testAPI} disabled={loading}>
                 {loading ? '⏳...' : '🚀 Tester'}
@@ -742,7 +1200,7 @@ const searchProducts = async () => {
 
       <footer className="footer">
         <p>🐳 Docker | ☸️ Kubernetes | 📊 Prometheus + Grafana | 🔐 JWT</p>
-        <p>Microservices Enterprise Platform v2.0 - Product Management</p>
+        <p>Microservices Enterprise Platform v5.0 - Professional Order Management</p>
       </footer>
     </div>
   );

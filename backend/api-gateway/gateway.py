@@ -8,7 +8,7 @@ app = FastAPI(title="API Gateway", version="1.0.0")
 # Configuration CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8000", "*"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -18,7 +18,7 @@ app.add_middleware(
 SERVICES = {
     "user": "http://user-service:8001/api",
     "product": "http://product-service:8002/api",
-    "order": "http://order-service:8003",
+    "order": "http://order-service:8003/api",
     "notification": "http://notification-service:8004",
     "chatbot": "http://chatbot-service:8005"
 }
