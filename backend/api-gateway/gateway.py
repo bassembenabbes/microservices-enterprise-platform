@@ -8,7 +8,7 @@ app = FastAPI(title="API Gateway", version="1.0.0")
 # Configuration CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://localhost:8000", "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -16,8 +16,8 @@ app.add_middleware(
 
 # Configuration des services
 SERVICES = {
-    "user": "http://user-service:8001/api",  # Note: /api à la fin
-    "product": "http://product-service:8002",
+    "user": "http://user-service:8001/api",
+    "product": "http://product-service:8002/api",
     "order": "http://order-service:8003",
     "notification": "http://notification-service:8004",
     "chatbot": "http://chatbot-service:8005"
@@ -30,18 +30,19 @@ class ServiceRegistry:
     
     async def route_request(self, service_name: str, path: str, 
                            method: str, data: Dict = None, 
-                           headers: Dict = None) -> Dict[str, Any]:
+                           headers: Dict = None,
+                           params: Dict = None) -> Dict[str, Any]:
         if service_name not in self.services:
             raise HTTPException(status_code=404, detail=f"Service '{service_name}' non trouvé")
         
-        # Construction de l'URL
         base_url = self.services[service_name]
         url = f"{base_url}/{path.lstrip('/')}"
         
         print(f"🔄 {method} {url}")
+        if params:
+            print(f"📊 Params: {params}")
         
         try:
-            # Supprimer Content-Length pour éviter les conflits
             if headers and 'content-length' in headers:
                 del headers['content-length']
             
@@ -49,7 +50,8 @@ class ServiceRegistry:
                 method=method,
                 url=url,
                 json=data if data else None,
-                headers=headers or {}
+                headers=headers or {},
+                params=params or {}
             )
             
             try:
@@ -66,10 +68,8 @@ class ServiceRegistry:
 
 service_registry = ServiceRegistry()
 
-# Route générique pour tous les services
 @app.api_route("/api/{service}/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
 async def gateway(service: str, path: str, request: Request):
-    """Point d'entrée principal du gateway"""
     data = None
     if request.method in ["POST", "PUT", "PATCH"]:
         try:
@@ -78,13 +78,18 @@ async def gateway(service: str, path: str, request: Request):
             data = None
     
     headers = dict(request.headers)
+    params = dict(request.query_params)
+    
+    print(f"📥 Requête: {request.method} /api/{service}/{path}")
+    print(f"📊 Query params reçus: {params}")
     
     result = await service_registry.route_request(
         service_name=service,
         path=path,
         method=request.method,
         data=data,
-        headers=headers
+        headers=headers,
+        params=params
     )
     
     return result["data"]

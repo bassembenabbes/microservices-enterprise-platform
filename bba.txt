@@ -1,0 +1,23 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Reconstruire
+cd ~/Documents/Deepseek/mon_projet_microservices
+docker compose build product-service --no-cache
+docker compose up -d product-service
+
+
+docker compose logs -f postgres-product --tail=50
+docker compose logs product-service --tail=30
+docker ps
+

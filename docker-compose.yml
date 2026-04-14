@@ -116,26 +116,26 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  kafka:
-    image: confluentinc/cp-kafka:latest
-    depends_on:
-      - zookeeper
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-    ports:
-      - "9092:9092"
-    networks:
-      - microservices-net
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+ # kafka:
+#    image: confluentinc/cp-kafka:latest
+#    depends_on:
+#      - zookeeper
+ #   environment:
+  #    KAFKA_BROKER_ID: 1
+  #    KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+#      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+ #     KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+ #     KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+#    ports:
+ #     - "9092:9092"
+ #   networks:
+ #     - microservices-net
+ #   restart: unless-stopped
+ #   logging:
+   #   driver: "json-file"
+  #    options:
+  #      max-size: "10m"
+  #      max-file: "3"
 
   # ============================================
   # SEARCH ENGINE
@@ -192,14 +192,14 @@ services:
       - DATABASE_URL=postgresql://user:password@postgres-user:5432/users_db
       - REDIS_URL=redis://:password@redis:6379
       - JWT_SECRET=my-super-secret-key-change-me
-      - KAFKA_BOOTSTRAP=kafka:9092
+      #- KAFKA_BOOTSTRAP=kafka:9092
     depends_on:
       postgres-user:
         condition: service_healthy
       redis:
         condition: service_healthy
-      kafka:
-        condition: service_started
+      #kafka:
+        #condition: service_started
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -222,7 +222,7 @@ services:
       - DB_PASSWORD=password
       - REDIS_URL=redis://:password@redis:6379
       - ELASTICSEARCH_URL=http://elasticsearch:9200
-      - KAFKA_BOOTSTRAP=kafka:9092
+      #- KAFKA_BOOTSTRAP=kafka:9092
     depends_on:
       postgres-product:
         condition: service_healthy
@@ -230,8 +230,8 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_started
-      kafka:
-        condition: service_started
+      #kafka:
+        #condition: service_started
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -248,14 +248,14 @@ services:
     environment:
       - DATABASE_URL=postgresql://user:password@postgres-order:5432/orders_db
       - REDIS_URL=redis://:password@redis:6379
-      - KAFKA_BOOTSTRAP=kafka:9092
+      #- KAFKA_BOOTSTRAP=kafka:9092
     depends_on:
       postgres-order:
         condition: service_healthy
       redis:
         condition: service_healthy
-      kafka:
-        condition: service_started
+      #kafka:
+        #condition: service_started
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -271,12 +271,12 @@ services:
       - microservices-net
     environment:
       - REDIS_URL=redis://:password@redis:6379
-      - KAFKA_BOOTSTRAP=kafka:9092
+      #- KAFKA_BOOTSTRAP=kafka:9092
     depends_on:
       redis:
         condition: service_healthy
-      kafka:
-        condition: service_started
+      #kafka:
+        #condition: service_started
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -284,26 +284,26 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  chatbot-service:
-    build: ./backend/chatbot-service
-    ports:
-      - "8005:8005"
-    networks:
-      - microservices-net
-    environment:
-      - REDIS_URL=redis://:password@redis:6379
-      - KAFKA_BOOTSTRAP=kafka:9092
-    depends_on:
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_started
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+#  chatbot-service:
+ #   build: ./backend/chatbot-service
+ #   ports:
+  #    - "8005:8005"
+ #   networks:
+ #     - microservices-net
+ #   environment:
+ #     - REDIS_URL=redis://:password@redis:6379
+ #     - KAFKA_BOOTSTRAP=kafka:9092
+ #   depends_on:
+ #     redis:
+ #       condition: service_healthy
+ #     kafka:
+  #      condition: service_started
+ #   restart: unless-stopped
+  #  logging:
+  #    driver: "json-file"
+  #    options:
+  #      max-size: "10m"
+  #      max-file: "3"
 
   # ============================================
   # API GATEWAY
@@ -320,13 +320,13 @@ services:
       - PRODUCT_SERVICE_URL=http://product-service:8002
       - ORDER_SERVICE_URL=http://order-service:8003
       - NOTIFICATION_SERVICE_URL=http://notification-service:8004
-      - CHATBOT_SERVICE_URL=http://chatbot-service:8005
+      #- CHATBOT_SERVICE_URL=http://chatbot-service:8005
     depends_on:
       - user-service
       - product-service
       - order-service
       - notification-service
-      - chatbot-service
+      #- chatbot-service
     restart: unless-stopped
     logging:
       driver: "json-file"
