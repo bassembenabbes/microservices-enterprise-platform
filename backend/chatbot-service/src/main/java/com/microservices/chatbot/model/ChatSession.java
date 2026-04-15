@@ -1,10 +1,10 @@
 package com.microservices.chatbot.model;
 
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -22,7 +22,8 @@ public class ChatSession {
     
     private String sessionId;
     private String userId;
-    private String context;
+    private String currentIntent;
+    private String currentAction;
     
     @ElementCollection
     @CollectionTable(name = "session_variables")
@@ -30,9 +31,6 @@ public class ChatSession {
     @Column(name = "var_value", length = 2000)
     private Map<String, String> variables = new HashMap<>();
     
-    private String currentIntent;
-    private String currentAction;
-    private String contractData;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime expiresAt;

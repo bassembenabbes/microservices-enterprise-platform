@@ -1,10 +1,10 @@
 package com.microservices.chatbot.model;
 
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
@@ -20,14 +20,13 @@ public class ChatMessage {
     
     private String sessionId;
     private String userId;
-    private String role; // USER, ASSISTANT, SYSTEM
+    private String role;
+    
+    @Column(length = 2000)
     private String content;
+    
     private String intent;
     private String action;
     private String contractState;
-    
-    @Column(length = 2000)
-    private String metadata;
-    
     private LocalDateTime timestamp;
 }

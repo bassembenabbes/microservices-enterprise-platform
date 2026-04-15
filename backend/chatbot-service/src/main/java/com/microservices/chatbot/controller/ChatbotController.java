@@ -22,9 +22,8 @@ public class ChatbotController {
     
     @PostMapping("/chat")
     public ResponseEntity<ChatResponse> chat(@RequestBody ChatRequest request) {
-        log.info("Chat request: {}", request.getMessage());
-        ChatResponse response = chatbotService.processMessage(request);
-        return ResponseEntity.ok(response);
+        log.info("Chat: {}", request.getMessage());
+        return ResponseEntity.ok(chatbotService.processMessage(request));
     }
     
     @GetMapping("/health")

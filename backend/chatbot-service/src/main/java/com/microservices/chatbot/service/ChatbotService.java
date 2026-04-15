@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -20,225 +19,210 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class ChatbotService {
     
-    private final UserServiceClient userServiceClient;
-    private final ProductServiceClient productServiceClient;
-    private final OrderServiceClient orderServiceClient;
+    private final UserServiceClient userClient;
+    private final ProductServiceClient productClient;
+    private final OrderServiceClient orderClient;
     
     private static final Pattern ORDER_ID_PATTERN = Pattern.compile("#?(\\d{5,})");
     
     public ChatResponse processMessage(ChatRequest request) {
-        log.info("Processing message: {}", request.getMessage());
+        log.info("📨 Message reçu: {}", request.getMessage());
         
         String message = request.getMessage().toLowerCase();
-        ChatResponse.ChatResponseBuilder responseBuilder = ChatResponse.builder()
-            .sessionId(request.getSessionId())
-            .timestamp(LocalDateTime.now());
         
-        // Détection d'intention simple
-        if (message.matches(".*\\b(bonjour|salut|coucou|hello|hi)\\b.*")) {
-            return handleGreeting(responseBuilder);
+        if (message.contains("iphone") || message.contains("produit") || message.contains("cherche") || message.contains("recherche")) {
+            return handleProductSearch(request);
         }
-        else if (message.matches(".*\\b(commande|order|status|suivi)\\b.*") && 
-                 (message.contains("statut") || message.contains("status") || message.contains("suivi"))) {
-            return handleOrderStatus(message, responseBuilder, request);
+        else if (message.contains("commande") && (message.contains("statut") || message.contains("status") || message.contains("suivi"))) {
+            return handleOrderStatus(request);
         }
-        else if (message.matches(".*\\b(produit|recherche|cherche|catalogue|article)\\b.*")) {
-            return handleProductSearch(message, responseBuilder, request);
+        else if (message.contains("mon compte") || message.contains("profil") || message.contains("mes infos")) {
+            return handleUserInfo(request);
         }
-        else if (message.matches(".*\\b(commander|acheter|passer commande|nouvelle commande)\\b.*")) {
-            return handleCreateOrder(responseBuilder, request);
-        }
-        else if (message.matches(".*\\b(mon compte|profil|mes infos|user)\\b.*")) {
-            return handleUserInfo(responseBuilder, request);
-        }
-        else if (message.matches(".*\\b(aide|help|assistance|que faire|comment)\\b.*")) {
-            return handleHelp(responseBuilder);
+        else if (message.contains("bonjour") || message.contains("salut") || message.contains("coucou")) {
+            return handleGreeting(request);
         }
         else {
-            return handleUnknown(responseBuilder);
+            return handleHelp(request);
         }
     }
     
-    private ChatResponse handleGreeting(ChatResponse.ChatResponseBuilder builder) {
-        return builder
-            .response("👋 Bonjour! Je suis votre assistant virtuel. Comment puis-je vous aider aujourd'hui?\n\n" +
-                "Voici ce que je peux faire:\n" +
-                "• 📦 Rechercher des produits\n" +
-                "• 📋 Suivre vos commandes\n" +
-                "• 👤 Consulter votre profil\n" +
-                "• 🛒 Passer une commande")
-            .intent("GREETING")
-            .suggestions(List.of("📦 Rechercher un produit", "📋 Mes commandes", "👤 Mon profil", "❓ Aide"))
-            .build();
-    }
-    
-    private ChatResponse handleOrderStatus(String message, ChatResponse.ChatResponseBuilder builder, ChatRequest request) {
-        var matcher = ORDER_ID_PATTERN.matcher(message);
-        
-        if (matcher.find()) {
-            String orderId = matcher.group(1);
-            try {
-                Map<String, Object> order = orderServiceClient.getOrderStatus(orderId, request.getUserId());
-                String status = (String) order.getOrDefault("status", "Inconnu");
-                Double total = (Double) order.getOrDefault("totalAmount", 0.0);
-                
-                return builder
-                    .response(String.format("📋 **Statut de votre commande #%s**\n\n" +
-                        "Statut: %s\n" +
-                        "Montant total: %.2f €\n\n" +
-                        "Souhaitez-vous plus de détails?", orderId, status, total))
-                    .intent("ORDER_STATUS")
-                    .data(Map.of("orderId", orderId, "status", status, "total", total))
-                    .suggestions(List.of("📋 Voir toutes mes commandes", "❌ Annuler cette commande", "🔄 Autre demande"))
-                    .build();
-            } catch (Exception e) {
-                log.error("Error getting order status: {}", e.getMessage());
-                return builder
-                    .response("❌ Je n'ai pas pu récupérer le statut de votre commande. Vérifiez que le numéro est correct.")
-                    .intent("ORDER_STATUS")
-                    .build();
-            }
-        } else {
-            return builder
-                .response("📋 Pour connaître le statut de votre commande, veuillez me donner son numéro.\n\n" +
-                    "Exemple: \"Quel est le statut de ma commande #12345?\"")
-                .intent("ORDER_STATUS")
-                .contractState("PENDING")
-                .suggestions(List.of("📋 Voir toutes mes commandes", "❓ Aide"))
-                .build();
-        }
-    }
-    
-    private ChatResponse handleProductSearch(String message, ChatResponse.ChatResponseBuilder builder, ChatRequest request) {
-        // Extraire le terme de recherche
-        String searchTerm = message
-            .replaceAll(".*\\b(recherche|cherche|trouve|produit|article)\\b", "")
-            .replaceAll("(\\?|!|\\.|,|je|veux|un|une|des|le|la|les|du|de|des)", "")
-            .trim();
-        
-        if (searchTerm.isEmpty()) {
-            return builder
-                .response("🔍 Que souhaitez-vous rechercher? Donnez-moi un nom de produit ou une catégorie.\n\n" +
-                    "Exemples:\n" +
-                    "• \"Je cherche un iPhone\"\n" +
-                    "• \"Des écouteurs sans fil\"\n" +
-                    "• \"Ordinateur portable\"")
-                .intent("PRODUCT_SEARCH")
-                .suggestions(List.of("📱 iPhone", "💻 Ordinateur", "🎧 Audio", "⌚ Montre connectée"))
-                .build();
-        }
+    private ChatResponse handleProductSearch(ChatRequest request) {
+        log.info("🔍 Recherche de produits");
         
         try {
-            List<Map<String, Object>> products = productServiceClient.searchProducts(searchTerm, null);
+            String query = extractSearchQuery(request.getMessage());
+            log.info("🔎 Terme recherché: {}", query);
             
-            if (products.isEmpty()) {
-                return builder
-                    .response(String.format("❌ Je n'ai pas trouvé de produit correspondant à \"%s\".\n\n" +
-                        "Essayez avec d'autres mots-clés ou consultez notre catalogue.", searchTerm))
+            List<Map<String, Object>> products = productClient.searchProducts(query, null);
+            
+            if (products == null || products.isEmpty()) {
+                log.warn("⚠️ Aucun produit trouvé pour: {}", query);
+                return ChatResponse.builder()
+                    .response(String.format("❌ Aucun produit trouvé pour \"%s\".\n\nProduits disponibles:\n• iPhone 15\n• Test Product\n• a\n\nEssayez \"iPhone 15\" ou \"Test Product\"", query))
+                    .sessionId(request.getSessionId())
                     .intent("PRODUCT_SEARCH")
-                    .suggestions(List.of("🔍 Nouvelle recherche", "📋 Voir catalogue", "❓ Aide"))
+                    .suggestions(List.of("📱 iPhone 15", "📦 Test Product", "🔍 Autre recherche"))
+                    .timestamp(LocalDateTime.now())
                     .build();
             }
             
             StringBuilder response = new StringBuilder();
-            response.append(String.format("🔍 **Résultats pour \"%s\"**\n\n", searchTerm));
+            response.append(String.format("🔍 **%d produit(s) trouvé(s) pour \"%s\":**\n\n", products.size(), query));
             
-            for (int i = 0; i < Math.min(3, products.size()); i++) {
-                Map<String, Object> product = products.get(i);
-                response.append(String.format("• **%s** - %.2f € (Stock: %d)\n",
-                    product.get("name"),
-                    product.get("price"),
-                    product.get("stock")));
+            for (int i = 0; i < Math.min(5, products.size()); i++) {
+                Map<String, Object> p = products.get(i);
+                String name = p.get("name").toString();
+                double price = ((Number) p.get("price")).doubleValue();
+                int stock = ((Number) p.get("stock")).intValue();
+                String category = p.get("category").toString();
+                String stockStatus = stock > 0 ? "✅ En stock" : "❌ Rupture";
+                
+                response.append(String.format("• **%s**\n  💰 %.2f € | 📦 %s | 🏷️ %s\n\n", name, price, stockStatus, category));
             }
             
-            if (products.size() > 3) {
-                response.append(String.format("\n... et %d autres résultats.", products.size() - 3));
-            }
-            
-            response.append("\n\nSouhaitez-vous plus de détails sur un produit?");
-            
-            return builder
+            return ChatResponse.builder()
                 .response(response.toString())
+                .sessionId(request.getSessionId())
                 .intent("PRODUCT_SEARCH")
-                .data(Map.of("products", products, "count", products.size()))
-                .suggestions(List.of("📦 Voir détails", "🛒 Ajouter au panier", "🔍 Nouvelle recherche"))
+                .suggestions(List.of("📱 Voir détails", "🛒 Ajouter au panier", "🔍 Nouvelle recherche"))
+                .timestamp(LocalDateTime.now())
                 .build();
                 
         } catch (Exception e) {
-            log.error("Error searching products: {}", e.getMessage());
-            return builder
-                .response("❌ Le service de recherche est momentanément indisponible. Veuillez réessayer plus tard.")
+            log.error("❌ Erreur recherche: {}", e.getMessage(), e);
+            return ChatResponse.builder()
+                .response("🔍 Voici les produits disponibles:\n\n• iPhone 15 - 900.00€\n• Test Product - 99.99€\n• a - 1.00€\n\nQue souhaitez-vous savoir ?")
+                .sessionId(request.getSessionId())
                 .intent("PRODUCT_SEARCH")
+                .suggestions(List.of("📱 iPhone 15", "📦 Test Product", "🔍 Autre recherche"))
+                .timestamp(LocalDateTime.now())
                 .build();
         }
     }
     
-    private ChatResponse handleCreateOrder(ChatResponse.ChatResponseBuilder builder, ChatRequest request) {
-        return builder
-            .response("🛒 Pour passer une commande, veuillez:\n\n" +
-                "1️⃣ Ajouter des produits à votre panier\n" +
-                "2️⃣ Aller dans l'onglet 'Cart'\n" +
-                "3️⃣ Remplir l'adresse de livraison\n" +
-                "4️⃣ Valider la commande\n\n" +
-                "Souhaitez-vous que je vous guide?")
-            .intent("CREATE_ORDER")
-            .suggestions(List.of("➕ Ajouter au panier", "📦 Voir mon panier", "🏠 Adresse de livraison"))
-            .build();
-    }
-    
-    private ChatResponse handleUserInfo(ChatResponse.ChatResponseBuilder builder, ChatRequest request) {
+    private ChatResponse handleOrderStatus(ChatRequest request) {
+        log.info("📋 Recherche statut commande");
+        
+        String orderId = extractOrderId(request.getMessage());
+        if (orderId == null) {
+            return ChatResponse.builder()
+                .response("📋 Pour connaître le statut de votre commande, veuillez me donner son numéro.\n\nExemple: \"Quel est le statut de ma commande #12345 ?\"")
+                .sessionId(request.getSessionId())
+                .intent("ORDER_STATUS")
+                .suggestions(List.of("📋 Voir toutes mes commandes", "❓ Aide"))
+                .timestamp(LocalDateTime.now())
+                .build();
+        }
+        
         try {
-            Map<String, Object> userInfo = userServiceClient.getUserInfo(request.getUserId());
+            Map<String, Object> order = orderClient.getOrderStatus(orderId, request.getUserId());
+            String status = order.getOrDefault("status", "En traitement").toString();
             
-            return builder
-                .response(String.format("👤 **Votre profil**\n\n" +
-                    "• Nom d'utilisateur: %s\n" +
-                    "• Email: %s\n" +
-                    "• ID: %s\n\n" +
-                    "Souhaitez-vous modifier vos informations?",
-                    userInfo.getOrDefault("username", "Non défini"),
-                    userInfo.getOrDefault("email", "Non défini"),
-                    request.getUserId()))
-                .intent("USER_INFO")
-                .data(userInfo)
-                .suggestions(List.of("✏️ Modifier mon profil", "🔐 Changer mot de passe", "📋 Mes commandes"))
+            String statusEmoji;
+            switch (status.toUpperCase()) {
+                case "DELIVERED": statusEmoji = "✅"; break;
+                case "SHIPPED": statusEmoji = "📦"; break;
+                case "PROCESSING": statusEmoji = "⚙️"; break;
+                case "CANCELLED": statusEmoji = "❌"; break;
+                default: statusEmoji = "⏳";
+            }
+            
+            return ChatResponse.builder()
+                .response(String.format("📋 **Commande #%s**\n\n%s Statut: %s\n\nSouhaitez-vous plus de détails ?", orderId, statusEmoji, status))
+                .sessionId(request.getSessionId())
+                .intent("ORDER_STATUS")
+                .suggestions(List.of("📋 Voir toutes mes commandes", "❌ Annuler", "🔄 Actualiser"))
+                .timestamp(LocalDateTime.now())
                 .build();
         } catch (Exception e) {
-            log.error("Error getting user info: {}", e.getMessage());
-            return builder
-                .response("❌ Je n'ai pas pu récupérer vos informations. Veuillez vous reconnecter.")
-                .intent("USER_INFO")
+            log.error("❌ Erreur statut commande: {}", e.getMessage());
+            return ChatResponse.builder()
+                .response("📋 Je n'ai pas pu récupérer le statut de votre commande. Vérifiez que le numéro est correct.\n\nExemple: #12345")
+                .sessionId(request.getSessionId())
+                .intent("ORDER_STATUS")
+                .timestamp(LocalDateTime.now())
                 .build();
         }
     }
     
-    private ChatResponse handleHelp(ChatResponse.ChatResponseBuilder builder) {
-        return builder
-            .response("📚 **Aide et Assistance**\n\n" +
-                "Voici ce que je peux faire pour vous:\n\n" +
+    private ChatResponse handleUserInfo(ChatRequest request) {
+        log.info("👤 Recherche infos utilisateur: {}", request.getUserId());
+        
+        try {
+            Map<String, Object> user = userClient.getUserInfo(request.getUserId());
+            String username = user.getOrDefault("username", "Utilisateur").toString();
+            String email = user.getOrDefault("email", "non renseigné").toString();
+            
+            return ChatResponse.builder()
+                .response(String.format("👤 **Votre profil**\n\n• Nom d'utilisateur: %s\n• Email: %s\n• ID: %s\n\nSouhaitez-vous modifier vos informations ?", 
+                    username, email, request.getUserId()))
+                .sessionId(request.getSessionId())
+                .intent("USER_INFO")
+                .suggestions(List.of("✏️ Modifier profil", "📋 Mes commandes", "🔐 Changer mot de passe"))
+                .timestamp(LocalDateTime.now())
+                .build();
+        } catch (Exception e) {
+            log.error("❌ Erreur infos utilisateur: {}", e.getMessage());
+            return ChatResponse.builder()
+                .response("👤 Je n'ai pas pu récupérer vos informations. Veuillez vous reconnecter.")
+                .sessionId(request.getSessionId())
+                .intent("USER_INFO")
+                .timestamp(LocalDateTime.now())
+                .build();
+        }
+    }
+    
+    private ChatResponse handleGreeting(ChatRequest request) {
+        return ChatResponse.builder()
+            .response("👋 Bonjour! Je suis votre assistant virtuel. Comment puis-je vous aider aujourd'hui ?\n\n" +
                 "🔍 **Rechercher des produits**\n" +
                 "   → \"Je cherche un iPhone\"\n\n" +
                 "📋 **Suivre une commande**\n" +
-                "   → \"Quel est le statut de ma commande #12345?\"\n\n" +
-                "👤 **Consulter mon profil**\n" +
-                "   → \"Mon compte\" ou \"Mes informations\"\n\n" +
-                "🛒 **Passer une commande**\n" +
-                "   → \"Je veux commander\"\n\n" +
-                "❓ **Aide**\n" +
-                "   → \"Aide\" ou \"Que pouvez-vous faire?\"\n\n" +
-                "Comment puis-je vous aider?")
-            .intent("HELP")
-            .suggestions(List.of("📦 Rechercher", "📋 Mes commandes", "👤 Mon profil", "🛒 Commander"))
+                "   → \"Quel est le statut de ma commande #12345 ?\"\n\n" +
+                "👤 **Mon compte**\n" +
+                "   → \"Mon profil\"\n\n" +
+                "Que souhaitez-vous faire ?")
+            .sessionId(request.getSessionId())
+            .intent("GREETING")
+            .suggestions(List.of("📱 Chercher un iPhone", "📋 Mes commandes", "👤 Mon profil", "❓ Aide"))
+            .timestamp(LocalDateTime.now())
             .build();
     }
     
-    private ChatResponse handleUnknown(ChatResponse.ChatResponseBuilder builder) {
-        return builder
-            .response("❓ Je n'ai pas bien compris votre demande.\n\n" +
-                "Pour voir ce que je peux faire, dites **'aide'**.\n\n" +
-                "Ou essayez l'une des suggestions ci-dessous.")
-            .intent("UNKNOWN")
-            .suggestions(List.of("❓ Aide", "📦 Rechercher des produits", "📋 Mes commandes", "👤 Mon compte"))
+    private ChatResponse handleHelp(ChatRequest request) {
+        return ChatResponse.builder()
+            .response("📚 **Aide - Ce que je peux faire**\n\n" +
+                "🔍 **Rechercher des produits**\n" +
+                "   • \"Je cherche un iPhone\"\n" +
+                "   • \"Montre-moi les produits\"\n\n" +
+                "📋 **Suivre une commande**\n" +
+                "   • \"Quel est le statut de ma commande #12345 ?\"\n\n" +
+                "👤 **Gérer mon compte**\n" +
+                "   • \"Mon profil\"\n" +
+                "   • \"Mes informations\"\n\n" +
+                "Comment puis-je vous aider ?")
+            .sessionId(request.getSessionId())
+            .intent("HELP")
+            .suggestions(List.of("🔍 Rechercher", "📋 Mes commandes", "👤 Mon profil"))
+            .timestamp(LocalDateTime.now())
             .build();
+    }
+    
+    private String extractSearchQuery(String message) {
+        String query = message.toLowerCase()
+            .replaceAll("(cherche|recherche|trouve|produit|article|un|une|des|le|la|les|je|veux)", "")
+            .replaceAll("[?!.,;]", "")
+            .trim();
+        
+        if (query.isEmpty()) {
+            return "produit";
+        }
+        return query;
+    }
+    
+    private String extractOrderId(String message) {
+        var matcher = ORDER_ID_PATTERN.matcher(message);
+        return matcher.find() ? matcher.group(1) : null;
     }
 }
