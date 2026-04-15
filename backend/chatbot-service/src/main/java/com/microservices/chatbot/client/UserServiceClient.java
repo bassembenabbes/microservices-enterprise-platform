@@ -24,7 +24,7 @@ public class UserServiceClient {
         try {
             WebClient webClient = webClientBuilder.baseUrl(userServiceUrl).build();
             return webClient.get()
-                    .uri("/api/users/{userId}", userId)
+                    .uri("/api/users/{userId}", "me")
                     .retrieve()
                     .bodyToMono(Map.class)
                     .block();

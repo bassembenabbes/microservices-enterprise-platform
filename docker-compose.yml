@@ -378,7 +378,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-vector:5432/chatbot_db
       - SPRING_DATASOURCE_USERNAME=user
       - SPRING_DATASOURCE_PASSWORD=password
-      - GOOGLE_GEMINI_API_KEY=AIzaSyC_gXBa7Cmfu_vUdRRJ_L9ArKxdVQuuSq8
+      - GOOGLE_GEMINI_API_KEY=AIzaSyD3QdPN0H2PsA_jz-t8yTlXF5wbYaUszFI
       - N8N_WEBHOOK_URL=http://n8n:5678/webhook
       - JAVA_OPTS=-Xms512m -Xmx1024m
     depends_on:

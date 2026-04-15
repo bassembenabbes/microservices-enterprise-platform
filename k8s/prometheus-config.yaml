@@ -1,0 +1,181 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-chatbot-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: 'production'
+        service: 'chatbot-service'
+    
+    # Alertmanager configuration
+    alerting:
+      alertmanagers:
+      - static_configs:
+        - targets:
+          - alertmanager:9093
+    
+    rule_files:
+      - /etc/prometheus/rules/chatbot-service-alerts.yml
+    
+    scrape_configs:
+    
+    # Chatbot Service Metrics
+    - job_name: 'chatbot-service'
+      metrics_path: '/actuator/prometheus'
+      static_configs:
+      - targets: ['chatbot-service:8005']
+      scrape_interval: 15s
+      scrape_timeout: 10s
+      
+      # Service discovery (Kubernetes)
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - microservices
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_endpoints_name]
+        regex: 'chatbot-service'
+        action: keep
+    
+    # Prometheus itself
+    - job_name: 'prometheus'
+      static_configs:
+      - targets: ['localhost:9090']
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-chatbot-alerts
+  namespace: monitoring
+data:
+  chatbot-service-alerts.yml: |
+    groups:
+    - name: chatbot-service
+      interval: 30s
+      rules:
+      
+      # Haute latence
+      - alert: ChatbotHighLatency
+        expr: |
+          histogram_quantile(0.95, 
+            rate(http_server_requests_seconds_bucket{job="chatbot-service"}[5m])
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          service: chatbot-service
+        annotations:
+          summary: "Latence élevée - {{ $value | humanizeDuration }}"
+          description: "P95 latency dépasse 500ms"
+      
+      # Taux d'erreur élevé
+      - alert: ChatbotHighErrorRate
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{job="chatbot-service",status=~"5.."}[5m]))
+            /
+            sum(rate(http_server_requests_seconds_count{job="chatbot-service"}[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: chatbot-service
+        annotations:
+          summary: "Taux d'erreur élevé - {{ $value | humanizePercentage }}"
+          description: "Taux d'erreur 5xx dépasse 5%"
+      
+      # Pod redémarrage fréquent
+      - alert: ChatbotPodCrashLooping
+        expr: |
+          rate(kube_pod_container_status_restarts_total{pod=~"chatbot-service-.*"}[30m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: chatbot-service
+        annotations:
+          summary: "Pod crash looping - {{ $labels.pod }}"
+          description: "Pod {{ $labels.pod }} redémarre fréquemment"
+      
+      # Mémoire élevée
+      - alert: ChatbotHighMemory
+        expr: |
+          (
+            container_memory_usage_bytes{pod=~"chatbot-service-.*"}
+            /
+            container_spec_memory_limit_bytes{pod=~"chatbot-service-.*"}
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: chatbot-service
+        annotations:
+          summary: "Utilisation mémoire élevée - {{ $value | humanizePercentage }}"
+          description: "Pod {{ $labels.pod }} utilise >90% de mémoire"
+      
+      # CPU élevé
+      - alert: ChatbotHighCPU
+        expr: |
+          (
+            rate(container_cpu_usage_seconds_total{pod=~"chatbot-service-.*"}[5m])
+            *
+            100
+          ) > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: chatbot-service
+        annotations:
+          summary: "Utilisation CPU élevée - {{ $value | humanize }}%"
+          description: "Pod {{ $labels.pod }} utilise >80% CPU"
+      
+      # Service unavailable
+      - alert: ChatbotServiceDown
+        expr: |
+          up{job="chatbot-service"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: chatbot-service
+        annotations:
+          summary: "Service down"
+          description: "Chatbot service est inaccessible depuis 2 minutes"
+      
+      # Gemini API error rate
+      - alert: ChatbotGeminiErrorRate
+        expr: |
+          (
+            sum(rate(chatbot_gemini_errors_total[5m]))
+            /
+            sum(rate(chatbot_gemini_requests_total[5m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: chatbot-service
+        annotations:
+          summary: "Taux d'erreur Gemini élevé - {{ $value | humanizePercentage }}"
+          description: "API Gemini a >10% d'erreurs"
+      
+      # Database connection issues
+      - alert: ChatbotDBConnectionIssues
+        expr: |
+          (
+            sum(rate(chatbot_db_errors_total[5m]))
+            /
+            sum(rate(chatbot_db_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: chatbot-service
+        annotations:
+          summary: "Problème de connexion DB"
+          description: "Taux d'erreur DB dépasse 5%"
+

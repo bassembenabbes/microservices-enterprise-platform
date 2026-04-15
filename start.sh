@@ -1,7 +1,7 @@
 #!/bin/bash
 echo "🚀 Demarrage des microservices..."
-# Définir la clé API Gemini
-export GOOGLE_GEMINI_API_KEY="AIzaSyC_gXBa7Cmfu_vUdRRJ_L9ArKxdVQuuSq8" 
+# La clé API Gemini est configurée dans le fichier .env
+ export GOOGLE_GEMINI_API_KEY="AIzaSyD3QdPN0H2PsA_jz-t8yTlXF5wbYaUszFI"
 cd "$(dirname "$0")"
 docker compose --env-file .env up -d --build
 echo ""
