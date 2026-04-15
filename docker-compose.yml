@@ -207,6 +207,7 @@ services:
       - SPRING_DATASOURCE_USERNAME=user
       - SPRING_DATASOURCE_PASSWORD=password
       - REDIS_URL=redis://:password@redis:6379
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook/order-created
     depends_on:
       postgres-order:
         condition: service_healthy

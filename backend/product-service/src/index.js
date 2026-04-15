@@ -1,9 +1,17 @@
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
+const { Kafka } = require('kafkajs');
 
 const app = express();
 const port = process.env.PORT || 8002;
+
+// Kafka setup
+const kafka = new Kafka({
+  clientId: 'product-service',
+  brokers: [process.env.KAFKA_BROKERS || 'localhost:9092']
+});
+const producer = kafka.producer();
 
 // CORS
 app.use(cors({
@@ -159,6 +167,22 @@ app.post('/api/products', async (req, res) => {
     );
     
     console.log('✅ Product created successfully:', result.rows[0]);
+    
+    // Publish event to Kafka
+    await producer.send({
+      topic: 'product-events',
+      messages: [
+        {
+          key: result.rows[0].id.toString(),
+          value: JSON.stringify({
+            event: 'PRODUCT_CREATED',
+            product: result.rows[0],
+            timestamp: new Date().toISOString()
+          })
+        }
+      ]
+    });
+    
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('❌ Create error:', error);
@@ -278,6 +302,7 @@ app.delete('/api/products/:id', async (req, res) => {
 // Start server
 async function start() {
   await initDb();
+  await producer.connect();
   app.listen(port, () => {
     console.log(`✅ Product Service running on port ${port}`);
   });

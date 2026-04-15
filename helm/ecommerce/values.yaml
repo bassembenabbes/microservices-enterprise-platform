@@ -1,0 +1,115 @@
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: ""
+
+# PostgreSQL Databases
+postgresql:
+  enabled: true
+  user:
+    database: users_db
+    username: user
+    password: password
+  product:
+    database: products_db
+    username: user
+    password: password
+  order:
+    database: orders_db
+    username: user
+    password: password
+  vector:
+    database: chatbot_db
+    username: user
+    password: password
+
+# Redis
+redis:
+  enabled: true
+  password: ""
+
+# Elasticsearch
+elasticsearch:
+  enabled: true
+  replicas: 1
+
+# Kafka
+kafka:
+  enabled: true
+  replicas: 1
+  zookeeper:
+    replicas: 1
+
+# Services
+userService:
+  image:
+    repository: mon_projet_microservices-user-service
+    tag: latest
+  replicas: 1
+  port: 8001
+
+productService:
+  image:
+    repository: mon_projet_microservices-product-service
+    tag: latest
+  replicas: 1
+  port: 8002
+
+orderService:
+  image:
+    repository: mon_projet_microservices-order-service
+    tag: latest
+  replicas: 1
+  port: 8003
+
+chatbotService:
+  image:
+    repository: mon_projet_microservices-chatbot-service
+    tag: latest
+  replicas: 1
+  port: 8005
+  geminiApiKey: "your_key_here"
+
+apiGateway:
+  image:
+    repository: mon_projet_microservices-api-gateway
+    tag: latest
+  replicas: 1
+  port: 8000
+
+frontend:
+  image:
+    repository: mon_projet_microservices-frontend
+    tag: latest
+  replicas: 1
+  port: 3000
+
+notificationService:
+  image:
+    repository: mon_projet_microservices-notification-service
+    tag: latest
+  replicas: 1
+  port: 8004
+
+# Monitoring
+prometheus:
+  enabled: true
+
+grafana:
+  enabled: true
+  adminPassword: admin
+
+# Ingress
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: ecommerce.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# ArgoCD (for GitOps)
+argocd:
+  enabled: false

@@ -1,0 +1,164 @@
+{
+  "name": "Product Inventory Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "product-updated",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-product-updated",
+      "name": "Webhook Product Updated",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "productId",
+              "value": "={{ $json.body.productId }}"
+            },
+            {
+              "name": "name",
+              "value": "={{ $json.body.name }}"
+            },
+            {
+              "name": "stock",
+              "value": "={{ $json.body.stock }}"
+            },
+            {
+              "name": "isAvailable",
+              "value": "={{ $json.body.is_available }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-product-data",
+      "name": "Set Product Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $node[\"set-product-data\"].json.stock }}",
+              "operation": "less",
+              "value2": 10
+            }
+          ]
+        }
+      },
+      "id": "check-low-stock",
+      "name": "Check Low Stock",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "alerts@ecommerce.com",
+        "toEmail": "admin@ecommerce.com",
+        "subject": "Alerte stock faible - {{ $node[\"set-product-data\"].json.name }}",
+        "text": "Le produit '{{ $node[\"set-product-data\"].json.name }}' (ID: {{ $node[\"set-product-data\"].json.productId }}) a un stock faible.\n\nStock actuel: {{ $node[\"set-product-data\"].json.stock }}\n\nVeuillez réapprovisionner.",
+        "options": {}
+      },
+      "id": "send-low-stock-alert",
+      "name": "Send Low Stock Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $node[\"set-product-data\"].json.isAvailable }}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "id": "check-out-of-stock",
+      "name": "Check Out of Stock",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "fromEmail": "alerts@ecommerce.com",
+        "toEmail": "admin@ecommerce.com",
+        "subject": "Produit épuisé - {{ $node[\"set-product-data\"].json.name }}",
+        "text": "Le produit '{{ $node[\"set-product-data\"].json.name }}' (ID: {{ $node[\"set-product-data\"].json.productId }}) est maintenant épuisé.\n\nStock: 0\n\nAction requise: réapprovisionnement urgent.",
+        "options": {}
+      },
+      "id": "send-out-of-stock-alert",
+      "name": "Send Out of Stock Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [900, 400]
+    }
+  ],
+  "connections": {
+    "webhook-product-updated": {
+      "main": [
+        [
+          {
+            "node": "set-product-data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set-product-data": {
+      "main": [
+        [
+          {
+            "node": "check-low-stock",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "check-out-of-stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check-low-stock": {
+      "main": [
+        [
+          {
+            "node": "send-low-stock-alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check-out-of-stock": {
+      "main": [
+        [
+          {
+            "node": "send-out-of-stock-alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null
+}

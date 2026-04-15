@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ecommerce.fullname" . }}-chatbot-service
+spec:
+  replicas: {{ .Values.chatbotService.replicas }}
+  selector:
+    matchLabels:
+      app: chatbot-service
+  template:
+    metadata:
+      labels:
+        app: chatbot-service
+    spec:
+      containers:
+      - name: chatbot-service
+        image: {{ .Values.global.imageRegistry }}{{ .Values.chatbotService.image.repository }}:{{ .Values.chatbotService.image.tag }}
+        env:
+        - name: DB_URL
+          value: jdbc:postgresql://postgres-vector:5432/{{ .Values.postgresql.vector.database }}
+        - name: DB_USERNAME
+          value: {{ .Values.postgresql.vector.username }}
+        - name: DB_PASSWORD
+          value: {{ .Values.postgresql.vector.password }}
+        - name: REDIS_HOST
+          value: redis
+        - name: REDIS_PORT
+          value: "6379"
+        - name: GEMINI_API_KEY
+          value: {{ .Values.chatbotService.geminiApiKey }}
+        - name: USER_SERVICE_URL
+          value: http://user-service:{{ .Values.userService.port }}
+        - name: PRODUCT_SERVICE_URL
+          value: http://product-service:{{ .Values.productService.port }}
+        - name: ORDER_SERVICE_URL
+          value: http://order-service:{{ .Values.orderService.port }}
+        ports:
+        - containerPort: {{ .Values.chatbotService.port }}
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chatbot-service
+spec:
+  ports:
+  - port: {{ .Values.chatbotService.port }}
+    targetPort: {{ .Values.chatbotService.port }}
+  selector:
+    app: chatbot-service

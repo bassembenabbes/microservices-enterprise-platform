@@ -5,8 +5,10 @@ import com.microservices.order.dto.*;
 import com.microservices.order.model.*;
 import com.microservices.order.repository.OrderRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,10 +21,15 @@ public class OrderService {
     
     private final OrderRepository orderRepository;
     private final UserClient userClient;
+    private final WebClient webClient;
     
-    public OrderService(OrderRepository orderRepository, UserClient userClient) {
+    @Value("${n8n.webhook.url:http://n8n:5678/webhook}")
+    private String n8nWebhookUrl;
+    
+    public OrderService(OrderRepository orderRepository, UserClient userClient, WebClient.Builder webClientBuilder) {
         this.orderRepository = orderRepository;
         this.userClient = userClient;
+        this.webClient = webClientBuilder.build();
     }
     
     private static final String ORDER_NUMBER_PREFIX = "ORD-";
@@ -74,6 +81,9 @@ public class OrderService {
         Order savedOrder = orderRepository.save(order);
         log.info("Order created with id: {}", savedOrder.getId());
         
+        // Trigger n8n workflow for order processing
+        triggerOrderCreatedWebhook(savedOrder, request);
+        
         return mapToResponse(savedOrder);
     }
     
@@ -120,5 +130,105 @@ public class OrderService {
         response.setItems(items);
         
         return response;
+    }
+    
+    private void triggerOrderCreatedWebhook(Order order, OrderRequest request) {
+        // Prepare the payload for the webhook
+        WebhookPayload payload = new WebhookPayload();
+        payload.setOrderId(order.getId());
+        payload.setOrderNumber(order.getOrderNumber());
+        payload.setUserId(order.getUserId());
+        payload.setUserEmail(order.getUserEmail());
+        payload.setTotalAmount(order.getTotalAmount());
+        payload.setStatus(order.getStatus());
+        payload.setPaymentStatus(order.getPaymentStatus());
+        payload.setDeliveryStatus(order.getDeliveryStatus());
+        payload.setShippingAddress(order.getShippingAddress());
+        payload.setPhoneNumber(order.getPhoneNumber());
+        payload.setEmail(order.getEmail());
+        payload.setCreatedAt(order.getCreatedAt());
+        payload.setItems(order.getItems().stream().map(item -> {
+            WebhookItem webhookItem = new WebhookItem();
+            webhookItem.setProductId(item.getProductId());
+            webhookItem.setProductName(item.getProductName());
+            webhookItem.setQuantity(item.getQuantity());
+            webhookItem.setUnitPrice(item.getUnitPrice());
+            webhookItem.setSubtotal(item.getSubtotal());
+            return webhookItem;
+        }).collect(Collectors.toList()));
+        
+        // Call the n8n webhook URL
+        webClient.post()
+                .uri(n8nWebhookUrl)
+                .bodyValue(payload)
+                .retrieve()
+                .bodyToMono(Void.class)
+                .doOnSuccess(aVoid -> log.info("Triggered n8n webhook successfully"))
+                .doOnError(throwable -> log.error("Error triggering n8n webhook", throwable))
+                .subscribe();
+    }
+    
+    private static class WebhookPayload {
+        private String orderId;
+        private String orderNumber;
+        private String userId;
+        private String userEmail;
+        private double totalAmount;
+        private OrderStatus status;
+        private PaymentStatus paymentStatus;
+        private DeliveryStatus deliveryStatus;
+        private String shippingAddress;
+        private String phoneNumber;
+        private String email;
+        private LocalDateTime createdAt;
+        private List<WebhookItem> items;
+        
+        // Getters and setters
+        public String getOrderId() { return orderId; }
+        public void setOrderId(String orderId) { this.orderId = orderId; }
+        public String getOrderNumber() { return orderNumber; }
+        public void setOrderNumber(String orderNumber) { this.orderNumber = orderNumber; }
+        public String getUserId() { return userId; }
+        public void setUserId(String userId) { this.userId = userId; }
+        public String getUserEmail() { return userEmail; }
+        public void setUserEmail(String userEmail) { this.userEmail = userEmail; }
+        public double getTotalAmount() { return totalAmount; }
+        public void setTotalAmount(double totalAmount) { this.totalAmount = totalAmount; }
+        public OrderStatus getStatus() { return status; }
+        public void setStatus(OrderStatus status) { this.status = status; }
+        public PaymentStatus getPaymentStatus() { return paymentStatus; }
+        public void setPaymentStatus(PaymentStatus paymentStatus) { this.paymentStatus = paymentStatus; }
+        public DeliveryStatus getDeliveryStatus() { return deliveryStatus; }
+        public void setDeliveryStatus(DeliveryStatus deliveryStatus) { this.deliveryStatus = deliveryStatus; }
+        public String getShippingAddress() { return shippingAddress; }
+        public void setShippingAddress(String shippingAddress) { this.shippingAddress = shippingAddress; }
+        public String getPhoneNumber() { return phoneNumber; }
+        public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        public LocalDateTime getCreatedAt() { return createdAt; }
+        public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+        public List<WebhookItem> getItems() { return items; }
+        public void setItems(List<WebhookItem> items) { this.items = items; }
+    }
+    
+    private static class WebhookItem {
+        private String productId;
+        private String productName;
+        private int quantity;
+        private double unitPrice;
+        private double subtotal;
+        
+        // Getters and setters
+        public String getProductId() { return productId; }
+        public void setProductId(String productId) { this.productId = productId; }
+        public String getProductName() { return productName; }
+        public void setProductName(String productName) { this.productName = productName; }
+        public int getQuantity() { return quantity; }
+        public void setQuantity(int quantity) { this.quantity = quantity; }
+        public double getUnitPrice() { return unitPrice; }
+        public void setUnitPrice(double unitPrice) { this.unitPrice = unitPrice; }
+        public double getSubtotal() { return subtotal; }
+        public void setSubtotal(double subtotal) { this.subtotal = subtotal; }
     }
 }

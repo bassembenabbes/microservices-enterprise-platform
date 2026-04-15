@@ -1,0 +1,127 @@
+{
+  "name": "User Registration Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "user-registered",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-user-registered",
+      "name": "Webhook User Registered",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "userId",
+              "value": "={{ $json.body.userId }}"
+            },
+            {
+              "name": "username",
+              "value": "={{ $json.body.username }}"
+            },
+            {
+              "name": "email",
+              "value": "={{ $json.body.email }}"
+            },
+            {
+              "name": "fullName",
+              "value": "={{ $json.body.full_name }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-user-data",
+      "name": "Set User Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "welcome@ecommerce.com",
+        "toEmail": "{{ $node[\"set-user-data\"].json.email }}",
+        "subject": "Bienvenue sur notre plateforme e-commerce !",
+        "text": "Bonjour {{ $node[\"set-user-data\"].json.fullName }},\n\nBienvenue sur notre plateforme e-commerce !\n\nVotre compte a été créé avec succès.\n\nNom d'utilisateur: {{ $node[\"set-user-data\"].json.username }}\nEmail: {{ $node[\"set-user-data\"].json.email }}\n\nVous pouvez maintenant :\n- Parcourir notre catalogue de produits\n- Passer des commandes\n- Suivre vos achats\n- Contacter notre chatbot IA\n\nN'hésitez pas à nous contacter si vous avez des questions.\n\nCordialement,\nL'équipe E-commerce",
+        "options": {}
+      },
+      "id": "send-welcome-email",
+      "name": "Send Welcome Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://notification-service:8004/api/notifications",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "welcome"
+            },
+            {
+              "name": "userId",
+              "value": "{{ $node[\"set-user-data\"].json.userId }}"
+            },
+            {
+              "name": "message",
+              "value": "Bienvenue sur notre plateforme !"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-welcome-notification",
+      "name": "Send Welcome Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "webhook-user-registered": {
+      "main": [
+        [
+          {
+            "node": "set-user-data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set-user-data": {
+      "main": [
+        [
+          {
+            "node": "send-welcome-email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "send-welcome-email": {
+      "main": [
+        [
+          {
+            "node": "send-welcome-notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null
+}

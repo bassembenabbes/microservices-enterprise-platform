@@ -1,0 +1,73 @@
+services:
+  # Override images to use local builds
+  user-service:
+    image: ecommerce-user-service:latest
+    build:
+      context: ./backend/user-service
+
+  product-service:
+    image: ecommerce-product-service:latest
+    build:
+      context: ./backend/product-service
+
+  order-service:
+    image: ecommerce-order-service:latest
+    build:
+      context: ./backend/order-service
+
+  chatbot-service:
+    image: ecommerce-chatbot-service:latest
+    build:
+      context: ./backend/chatbot-service
+
+  api-gateway:
+    image: ecommerce-api-gateway:latest
+    build:
+      context: ./backend/api-gateway
+
+  frontend:
+    image: ecommerce-frontend:latest
+    build:
+      context: ./frontend
+
+  notification-service:
+    image: ecommerce-notification-service:latest
+    build:
+      context: ./backend/notification-service
+
+  # Development overrides
+  postgres-user:
+    ports:
+      - "5432:5432"
+
+  postgres-product:
+    ports:
+      - "5433:5432"
+
+  postgres-order:
+    ports:
+      - "5434:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  elasticsearch:
+    ports:
+      - "9200:9200"
+
+  logstash:
+    ports:
+      - "5044:5044"
+
+  kibana:
+    ports:
+      - "5601:5601"
+
+  prometheus:
+    ports:
+      - "9090:9090"
+
+  grafana:
+    ports:
+      - "3001:3000"

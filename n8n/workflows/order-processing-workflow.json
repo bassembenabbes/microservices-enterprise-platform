@@ -1,0 +1,187 @@
+{
+  "name": "Order Processing Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "order-created",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-order-created",
+      "name": "Webhook Order Created",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "orderId",
+              "value": "={{ $json.body.orderId }}"
+            },
+            {
+              "name": "userId",
+              "value": "={{ $json.body.userId }}"
+            },
+            {
+              "name": "totalAmount",
+              "value": "={{ $json.body.totalAmount }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-order-data",
+      "name": "Set Order Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://user-service:8001/api/users/me",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $json.body.token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-user-info",
+      "name": "Get User Info",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://order-service:8003/api/orders/{{ $node[\"set-order-data\"].json.orderId }}?userId={{ $node[\"set-order-data\"].json.userId }}",
+        "options": {}
+      },
+      "id": "get-order-details",
+      "name": "Get Order Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@ecommerce.com",
+        "toEmail": "{{ $node[\"get-user-info\"].json.email }}",
+        "subject": "Commande confirmée - #{{ $node[\"set-order-data\"].json.orderId }}",
+        "text": "Bonjour {{ $node[\"get-user-info\"].json.username }},\n\nVotre commande #{{ $node[\"set-order-data\"].json.orderId }} a été confirmée.\n\nMontant total: {{ $node[\"set-order-data\"].json.totalAmount }}€\n\nMerci pour votre achat!\n\nL'équipe E-commerce",
+        "options": {}
+      },
+      "id": "send-email-notification",
+      "name": "Send Email Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://notification-service:8004/api/notifications",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "order_confirmed"
+            },
+            {
+              "name": "userId",
+              "value": "{{ $node[\"set-order-data\"].json.userId }}"
+            },
+            {
+              "name": "orderId",
+              "value": "{{ $node[\"set-order-data\"].json.orderId }}"
+            },
+            {
+              "name": "message",
+              "value": "Votre commande a été confirmée"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-push-notification",
+      "name": "Send Push Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "webhook-order-created": {
+      "main": [
+        [
+          {
+            "node": "set-order-data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set-order-data": {
+      "main": [
+        [
+          {
+            "node": "get-user-info",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "get-order-details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get-user-info": {
+      "main": [
+        [
+          {
+            "node": "send-email-notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get-order-details": {
+      "main": [
+        [
+          {
+            "node": "send-email-notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "send-email-notification": {
+      "main": [
+        [
+          {
+            "node": "send-push-notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null
+}

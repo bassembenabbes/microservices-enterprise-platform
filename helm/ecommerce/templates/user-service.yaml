@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ecommerce.fullname" . }}-user-service
+spec:
+  replicas: {{ .Values.userService.replicas }}
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+      - name: user-service
+        image: {{ .Values.global.imageRegistry }}{{ .Values.userService.image.repository }}:{{ .Values.userService.image.tag }}
+        env:
+        - name: DB_HOST
+          value: postgres-user
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: {{ .Values.postgresql.user.database }}
+        - name: DB_USER
+          value: {{ .Values.postgresql.user.username }}
+        - name: DB_PASSWORD
+          value: {{ .Values.postgresql.user.password }}
+        ports:
+        - containerPort: {{ .Values.userService.port }}
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+spec:
+  ports:
+  - port: {{ .Values.userService.port }}
+    targetPort: {{ .Values.userService.port }}
+  selector:
+    app: user-service

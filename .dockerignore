@@ -1,0 +1,44 @@
+# Git
+.git
+.gitignore
+
+# CI/CD
+.github
+Jenkinsfile
+Makefile
+
+# Documentation
+*.md
+docs/
+
+# Helm
+helm/
+
+# ArgoCD
+argocd/
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Dependencies
+node_modules/
+target/
+
+# Environment
+.env
+.env.local
