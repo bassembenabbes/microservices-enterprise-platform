@@ -19,8 +19,8 @@ SERVICES = {
     "user": "http://user-service:8001/api",
     "product": "http://product-service:8002/api",
     "order": "http://order-service:8003/api",
-    "notification": "http://notification-service:8004",
-    "chatbot": "http://chatbot-service:8005"
+    "notification": "http://notification-service:8004/api",
+    "chatbot": "http://chatbot-service:8005/api"
 }
 
 class ServiceRegistry:

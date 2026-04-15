@@ -317,6 +317,86 @@ services:
     profiles:
       - monitoring
 
+  # PostgreSQL avec PGVector pour RAG
+  postgres-vector:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: chatbot_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5435:5432"
+    networks:
+      - microservices-net
+    volumes:
+      - postgres-vector-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d chatbot_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # n8n pour les workflows
+  n8n:
+    image: n8nio/n8n:latest
+    environment:
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678
+      - N8N_USER_FOLDER=/home/node/.n8n
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=168
+    ports:
+      - "5678:5678"
+    networks:
+      - microservices-net
+    volumes:
+      - n8n-data:/home/node/.n8n
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  chatbot-service:
+    build: ./backend/chatbot-service
+    ports:
+      - "8005:8005"
+    networks:
+      - microservices-net
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-vector:5432/chatbot_db
+      - SPRING_DATASOURCE_USERNAME=user
+      - SPRING_DATASOURCE_PASSWORD=password
+      - GOOGLE_GEMINI_API_KEY=${GOOGLE_GEMINI_API_KEY}
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook
+      - JAVA_OPTS=-Xms512m -Xmx1024m
+    depends_on:
+      postgres-vector:
+        condition: service_healthy
+      n8n:
+        condition: service_started
+      user-service:
+        condition: service_started
+      product-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 # ============================================
 # RÉSEAUX
 # ============================================
@@ -351,4 +431,10 @@ volumes:
     external: false
   grafana-data:
     name: microservices_grafana_data
+    external: false
+  postgres-vector-data:
+    name: microservices_postgres_vector_data
+    external: false
+  n8n-data:
+    name: microservices_n8n_data
     external: false

@@ -600,36 +600,39 @@ const getStatusLabel = (status) => {
     }
   };
 
-  // Chatbot
-  const sendChatMessage = async () => {
-    if (!chatInput.trim()) return;
+// Chatbot - Version corrigée
+const sendChatMessage = async () => {
+  if (!chatInput.trim()) return;
+  
+  const userMessage = { role: 'user', content: chatInput, timestamp: new Date().toISOString() };
+  setChatMessages(prev => [...prev, userMessage]);
+  setChatInput('');
+  setChatLoading(true);
+  
+  try {
+    // ✅ Correction: utiliser userId au lieu de user_id
+    const res = await axios.post(`${API_GATEWAY}/chatbot/chatbots/chat`, {
+      userId: currentUser?.id || 'anonymous',  // ← Changé de user_id à userId
+      sessionId: localStorage.getItem('sessionId') || `session_${Date.now()}`,
+      message: chatInput
+    });
     
-    const userMessage = { role: 'user', content: chatInput, timestamp: new Date().toISOString() };
-    setChatMessages(prev => [...prev, userMessage]);
-    setChatInput('');
-    setChatLoading(true);
-    
-    try {
-      const res = await axios.post(`${API_GATEWAY}/chatbot/chat`, {
-        user_id: currentUser?.id || 'anonymous',
-        message: chatInput
-      });
-      
-      const botMessage = { 
-        role: 'assistant', 
-        content: res.data.response || res.data.message || 'Message reçu!',
-        timestamp: new Date().toISOString()
-      };
-      setChatMessages(prev => [...prev, botMessage]);
-    } catch (error) {
-      setChatMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: `❌ Erreur: ${error.message}`,
-        timestamp: new Date().toISOString()
-      }]);
-    }
-    setChatLoading(false);
-  };
+    const botMessage = { 
+      role: 'assistant', 
+      content: res.data.response || res.data.message || 'Message reçu!',
+      timestamp: new Date().toISOString()
+    };
+    setChatMessages(prev => [...prev, botMessage]);
+  } catch (error) {
+    console.error('❌ Erreur chat:', error.response?.data || error.message);
+    setChatMessages(prev => [...prev, { 
+      role: 'assistant', 
+      content: `❌ Erreur: ${error.response?.data?.response || error.message}`,
+      timestamp: new Date().toISOString()
+    }]);
+  }
+  setChatLoading(false);
+};
 
   // Categories disponibles
   const categories = ['Electronics', 'Clothing', 'Books', 'Home', 'Sports', 'Toys', 'General'];
@@ -954,7 +957,7 @@ const getStatusLabel = (status) => {
         )}
 
         {/* Orders */}
-// Modifie la section d'affichage des commandes dans App.js
+
 
 {/* Orders */}
 {activeTab === 'orders' && isAuthenticated && (

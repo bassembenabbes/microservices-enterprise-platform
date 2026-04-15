@@ -1,0 +1,72 @@
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         CHATBOT MPC - Architecture                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                    ┌─────────────────┼─────────────────┐
+                    ▼                 ▼                 ▼
+            ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+            │   Intent     │  │   Context    │  │   Contract   │
+            │   Detection  │  │   Manager    │  │   Validator  │
+            └──────────────┘  └──────────────┘  └──────────────┘
+                    │                 │                 │
+                    └─────────────────┼─────────────────┘
+                                      ▼
+                          ┌─────────────────────┐
+                          │    MPC Router       │
+                          │  (Action Dispatcher) │
+                          └─────────────────────┘
+                                      │
+        ┌─────────────────┬───────────┼───────────┬─────────────────┐
+        ▼                 ▼           ▼           ▼                 ▼
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│ User Service │  │Product Service│ │ Order Service│  │   n8n        │
+│   Actions    │  │   Actions    │  │   Actions    │  │  Workflows   │
+└──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
+
+
+cd ~/Documents/Deepseek/mon_projet_microservices
+
+
+# Vérifier
+sleep 10
+docker compose logs chatbot-service --tail=30
+
+# Tester
+curl http://localhost:8005/api/chatbots/health
+
+# Tester le chat
+curl -X POST http://localhost:8005/api/chatbots/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "test-user",
+    "sessionId": "session-123",
+    "message": "Bonjour"
+  }'
+
+# Tester la recherche de produits
+curl -X POST http://localhost:8005/api/chatbots/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "test-user",
+    "sessionId": "session-123",
+    "message": "Je cherche un iPhone"
+  }'
+  
+  
+  # Test via API Gateway
+curl -X POST http://localhost:8000/api/chatbot/chatbots/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "test-user",
+    "sessionId": "session-123",
+    "message": "Bonjour"
+  }'
+
+# Test direct sur chatbot-service
+curl -X POST http://localhost:8005/api/chatbots/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "test-user",
+    "sessionId": "session-123",
+    "message": "Bonjour"
+  }'

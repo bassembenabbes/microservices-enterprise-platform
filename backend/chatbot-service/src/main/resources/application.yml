@@ -1,0 +1,61 @@
+server:
+  port: 8005
+
+spring:
+  application:
+    name: chatbot-service
+  
+  datasource:
+    url: jdbc:postgresql://postgres-vector:5432/chatbot_db
+    username: user
+    password: password
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+
+# Services URLs
+services:
+  user:
+    url: http://user-service:8001
+  product:
+    url: http://product-service:8002
+  order:
+    url: http://order-service:8003
+
+# n8n Configuration
+n8n:
+  webhook:
+    url: http://n8n:5678/webhook
+
+# MPC Configuration
+mpc:
+  contracts:
+    enabled: true
+  actions:
+    user:
+      - "GET_USER_INFO"
+      - "CHECK_USER_EXISTS"
+    product:
+      - "GET_PRODUCT_INFO"
+      - "SEARCH_PRODUCTS"
+      - "CHECK_STOCK"
+    order:
+      - "CREATE_ORDER"
+      - "GET_ORDER_STATUS"
+      - "GET_USER_ORDERS"
+
+logging:
+  level:
+    com.microservices.chatbot: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
