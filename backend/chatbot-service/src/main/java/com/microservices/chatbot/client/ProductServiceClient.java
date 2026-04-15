@@ -6,8 +6,6 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -28,51 +26,40 @@ public class ProductServiceClient {
     public List<Map<String, Object>> searchProducts(String query, String category) {
         try {
             WebClient webClient = webClientBuilder.baseUrl(productServiceUrl).build();
+            String uri = "/api/products/search?q=" + (query != null ? query : "");
             
-            // URL correcte: /api/products/search (pas de double /api)
-            StringBuilder uri = new StringBuilder("/api/products/search");
-            boolean hasParam = false;
-            
-            if (query != null && !query.isEmpty() && !query.equals("*")) {
-                uri.append("?q=").append(URLEncoder.encode(query, StandardCharsets.UTF_8));
-                hasParam = true;
-            }
-            if (category != null && !category.isEmpty()) {
-                uri.append(hasParam ? "&" : "?").append("category=").append(URLEncoder.encode(category, StandardCharsets.UTF_8));
-            }
-            
-            log.info("🔍 Appel Product Service: {}{}", productServiceUrl, uri.toString());
+            log.info("🔍 Appel Product Service: {}{}", productServiceUrl, uri);
             
             Map<String, Object> response = webClient.get()
-                    .uri(uri.toString())
+                    .uri(uri)
                     .retrieve()
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                     .block();
             
             if (response != null && response.containsKey("products")) {
-                Object products = response.get("products");
-                if (products instanceof List) {
-                    log.info("✅ {} produits trouvés", ((List<?>) products).size());
-                    return (List<Map<String, Object>>) products;
+                Object productsObj = response.get("products");
+                if (productsObj instanceof List) {
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> products = (List<Map<String, Object>>) productsObj;
+                    log.info("✅ {} produits trouvés", products.size());
+                    return products;
                 }
             }
             
-            log.warn("⚠️ Aucun produit trouvé pour la recherche: {}", query);
             return Collections.emptyList();
             
         } catch (Exception e) {
             log.error("❌ Erreur recherche produits: {}", e.getMessage());
-            return getMockProducts(query);
+            return getMockProducts();
         }
     }
     
-    // Produits mockés pour le test (basés sur les vrais produits)
-    private List<Map<String, Object>> getMockProducts(String query) {
-        log.info("📦 Retourne produits mockés pour: {}", query);
+    private List<Map<String, Object>> getMockProducts() {
+        log.info("📦 Retourne produits mockés");
         return List.of(
-            Map.of("id", "2", "name", "iPhone 15", "price", 900.00, "stock", 9, "category", "Books"),
-            Map.of("id", "1", "name", "Test Product", "price", 99.99, "stock", 11, "category", "Electronics"),
-            Map.of("id", "3", "name", "a", "price", 1.00, "stock", 1, "category", "Sports")
+            Map.of("id", "2", "name", "iPhone 15", "price", 900.00, "stock", 9),
+            Map.of("id", "1", "name", "Test Product", "price", 99.99, "stock", 11),
+            Map.of("id", "3", "name", "Samsung Galaxy", "price", 800.00, "stock", 5)
         );
     }
 }

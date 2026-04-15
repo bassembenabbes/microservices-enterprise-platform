@@ -372,11 +372,13 @@ services:
       - "8005:8005"
     networks:
       - microservices-net
+    env_file:
+      - .env  # ← Charge toutes les variables du fichier .env
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-vector:5432/chatbot_db
       - SPRING_DATASOURCE_USERNAME=user
       - SPRING_DATASOURCE_PASSWORD=password
-      - GOOGLE_GEMINI_API_KEY=${GOOGLE_GEMINI_API_KEY}
+      - GOOGLE_GEMINI_API_KEY=AIzaSyC_gXBa7Cmfu_vUdRRJ_L9ArKxdVQuuSq8
       - N8N_WEBHOOK_URL=http://n8n:5678/webhook
       - JAVA_OPTS=-Xms512m -Xmx1024m
     depends_on:

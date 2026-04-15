@@ -1,9 +1,9 @@
 #!/bin/bash
 echo "🚀 Demarrage des microservices..."
 # Définir la clé API Gemini
-export GOOGLE_GEMINI_API_KEY="votre-clé-api-gemini"
+export GOOGLE_GEMINI_API_KEY="AIzaSyC_gXBa7Cmfu_vUdRRJ_L9ArKxdVQuuSq8" 
 cd "$(dirname "$0")"
-docker compose up -d --build
+docker compose --env-file .env up -d --build
 echo ""
 echo "✅ Services demarres!"
 echo "📱 Frontend: http://localhost:3000"

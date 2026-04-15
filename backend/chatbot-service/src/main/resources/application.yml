@@ -1,5 +1,10 @@
 server:
   port: 8005
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+    connection-timeout: 30000
 
 spring:
   application:
@@ -10,24 +15,75 @@ spring:
     username: user
     password: password
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
   
   jpa:
     hibernate:
       ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 20
     show-sql: false
-
-google:
-  gemini:
-    api-key: ${GOOGLE_GEMINI_API_KEY:}
+    open-in-view: false
 
 services:
   user:
     url: http://user-service:8001
+    timeout: 5000
   product:
     url: http://product-service:8002
+    timeout: 5000
   order:
     url: http://order-service:8003
+    timeout: 5000
+
+# Google Gemini Configuration (une seule fois!)
+google:
+  gemini:
+    api-key: AIzaSyC_gXBa7Cmfu_vUdRRJ_L9ArKxdVQuuSq8
+    model: gemini-2.5-flash
+    cache-enabled: true
+
+# RAG Configuration
+rag:
+  enabled: true
+  top-k: 3
+  similarity-threshold: 0.7
+
+# Chatbot Configuration
+chatbot:
+  use-gemini: true
+
+# Resilience4j
+resilience4j:
+  circuitbreaker:
+    instances:
+      user-service:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
 
 logging:
   level:
     com.microservices.chatbot: DEBUG
+    org.springframework.web.reactive.function.client: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+session:
+  timeout: 3600
+  max-history: 50
