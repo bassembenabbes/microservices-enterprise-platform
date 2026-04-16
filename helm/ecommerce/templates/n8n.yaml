@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ecommerce.fullname" . }}-n8n
+  labels:
+    app: n8n
+spec:
+  replicas: {{ .Values.n8n.replicas | default 1 }}
+  selector:
+    matchLabels:
+      app: n8n
+  template:
+    metadata:
+      labels:
+        app: n8n
+    spec:
+      containers:
+      - name: n8n
+        image: {{ .Values.n8n.image.repository }}:{{ .Values.n8n.image.tag }}
+        ports:
+        - containerPort: {{ .Values.n8n.port }}
+        env:
+        - name: N8N_BASIC_AUTH_ACTIVE
+          value: "true"
+        - name: N8N_BASIC_AUTH_USER
+          value: "admin"
+        - name: N8N_BASIC_AUTH_PASSWORD
+          value: "admin"
+        - name: N8N_HOST
+          value: "0.0.0.0"
+        - name: N8N_PORT
+          value: "{{ .Values.n8n.port }}"
+        - name: N8N_PROTOCOL
+          value: "http"
+        - name: DB_TYPE
+          value: "sqlite"
+        - name: DB_SQLITE_DATABASE
+          value: "/home/node/.n8n/database.sqlite"
+        volumeMounts:
+        - name: n8n-data
+          mountPath: /home/node/.n8n
+        resources:
+          requests:
+            memory: {{ .Values.n8n.resources.requests.memory }}
+            cpu: {{ .Values.n8n.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.n8n.resources.limits.memory }}
+            cpu: {{ .Values.n8n.resources.limits.cpu }}
+      volumes:
+      - name: n8n-data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ecommerce.fullname" . }}-n8n
+  labels:
+    app: n8n
+spec:
+  selector:
+    app: n8n
+  ports:
+  - name: http
+    port: {{ .Values.n8n.port }}
+    targetPort: {{ .Values.n8n.port }}
+  type: ClusterIP

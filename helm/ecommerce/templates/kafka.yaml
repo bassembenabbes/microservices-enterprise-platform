@@ -23,6 +23,13 @@ spec:
           value: "2000"
         ports:
         - containerPort: 2181
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
 ---
 apiVersion: v1
 kind: Service
@@ -51,27 +58,61 @@ spec:
       containers:
       - name: kafka
         image: confluentinc/cp-kafka:7.4.0
+        ports:
+        - containerPort: 9092
+          name: plaintext
+        - containerPort: 29092
+          name: controller
         env:
         - name: KAFKA_BROKER_ID
           value: "1"
         - name: KAFKA_ZOOKEEPER_CONNECT
-          value: zookeeper:2181
-        - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
-          value: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+          value: "zookeeper:2181"
         - name: KAFKA_ADVERTISED_LISTENERS
-          value: PLAINTEXT://kafka:9092,PLAINTEXT_INTERNAL://localhost:29092
+          value: "PLAINTEXT://kafka:9092"
+        - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+          value: "PLAINTEXT:PLAINTEXT"
+        - name: KAFKA_INTER_BROKER_LISTENER_NAME
+          value: "PLAINTEXT"
         - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
           value: "1"
-        ports:
-        - containerPort: 9092
+        - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+          value: "true"
+        - name: KAFKA_DELETE_TOPIC_ENABLE
+          value: "true"
+        - name: KAFKA_LOG_RETENTION_HOURS
+          value: "168"
+        livenessProbe:
+          tcpSocket:
+            port: 9092
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 9092
+          initialDelaySeconds: 30
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: kafka
+  labels:
+    app: kafka
 spec:
+  type: ClusterIP
   ports:
   - port: 9092
+    targetPort: 9092
+    protocol: TCP
+    name: plaintext
   selector:
     app: kafka
 {{- end }}

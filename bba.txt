@@ -1,3 +1,7 @@
+bba@bba-5580:~/Documents/Deepseek/mon_projet_microservices$ minikube start --driver=docker --memory=4096 --cpus=2
+
+
+
 
 You need to add the required GitHub secrets to your repository:
 
@@ -6,7 +10,7 @@ You need to add the required GitHub secrets to your repository:
 
     Add two new secrets:
         DOCKER_USERNAME: Your Docker Hub username
-        DOCKER_PASSWORD: Your Docker Hub password or personal access token
+        DOCKER_PASSWORD: Your Docker Hub password or personal access token DOCKER_PASSWORD
 
     Best Practice: Instead of using your password, create a Docker Hub Personal Access Token:
         Log into Docker Hub

@@ -26,6 +26,8 @@ spec:
           value: {{ .Values.postgresql.product.username }}
         - name: DB_PASSWORD
           value: {{ .Values.postgresql.product.password }}
+        - name: KAFKA_BROKERS
+          value: kafka:9092
         ports:
         - containerPort: {{ .Values.productService.port }}
         resources:

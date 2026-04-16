@@ -1,4 +1,7 @@
 # E-commerce Microservices
+minikube config set memory 8192 minikube config set cpus 4
+minikube start --memory=8192 --cpus=4
+
 
 A complete e-commerce platform built with microservices architecture, featuring modern DevOps practices and cloud-native deployment.
 

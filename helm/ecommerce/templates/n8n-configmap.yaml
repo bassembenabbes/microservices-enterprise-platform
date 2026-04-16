@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ecommerce.fullname" . }}-n8n-workflows
+  labels:
+    app: n8n
+data:
+  order-processing-workflow.json: |
+{{ .Files.Get "n8n/workflows/order-processing-workflow.json" | indent 4 }}
+  product-inventory-workflow.json: |
+{{ .Files.Get "n8n/workflows/product-inventory-workflow.json" | indent 4 }}
+  user-registration-workflow.json: |
+{{ .Files.Get "n8n/workflows/user-registration-workflow.json" | indent 4 }}

@@ -1,126 +1,135 @@
+# Production values for ArgoCD deployment
+# This file contains production-ready configurations
+
+# Global settings
 global:
   imageRegistry: ""
   imagePullSecrets: []
-  storageClass: ""
+  storageClass: "gp3"  # AWS EBS, change for your cloud provider
 
-# Chart configuration
-nameOverride: ""
-fullnameOverride: "ecommerce"
-
-# PostgreSQL Databases
+# PostgreSQL Databases - Production settings
 postgresql:
   enabled: true
   user:
     database: users_db
-    username: user
-    password: password
+    username: ecommerce_user
+    password: "CHANGE_THIS_STRONG_PASSWORD"
   product:
     database: products_db
-    username: user
-    password: password
+    username: ecommerce_user
+    password: "CHANGE_THIS_STRONG_PASSWORD"
   order:
     database: orders_db
-    username: user
-    password: password
+    username: ecommerce_user
+    password: "CHANGE_THIS_STRONG_PASSWORD"
   vector:
     database: chatbot_db
-    username: user
-    password: password
+    username: ecommerce_user
+    password: "CHANGE_THIS_STRONG_PASSWORD"
 
-# Redis
+# Redis - Production settings
 redis:
   enabled: true
-  password: ""
+  password: "CHANGE_THIS_STRONG_REDIS_PASSWORD"
+  persistence:
+    enabled: true
+    size: 8Gi
 
-# Elasticsearch
+# Elasticsearch - Production settings
 elasticsearch:
   enabled: true
-  replicas: 1
+  replicas: 3
+  persistence:
+    enabled: true
+    size: 50Gi
 
-# Kafka
+# Kafka - Production settings
 kafka:
   enabled: true
-  replicas: 1
+  replicas: 3
   zookeeper:
-    replicas: 1
+    replicas: 3
+  persistence:
+    enabled: true
+    size: 20Gi
 
-# Services
+# Services - Production resources
 userService:
   image:
     repository: bassembenabbes/ecommerce-user-service
     tag: latest
-  replicas: 1
+  replicas: 3
   port: 8001
   resources:
     requests:
-      memory: "256Mi"
-      cpu: "200m"
-    limits:
       memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
       cpu: "500m"
 
 productService:
   image:
     repository: bassembenabbes/ecommerce-product-service
     tag: latest
-  replicas: 1
+  replicas: 3
   port: 8002
   resources:
     requests:
-      memory: "256Mi"
-      cpu: "200m"
-    limits:
       memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
       cpu: "500m"
 
 orderService:
   image:
     repository: bassembenabbes/ecommerce-order-service
     tag: latest
-  replicas: 1
+  replicas: 3
   port: 8003
   resources:
     requests:
-      memory: "256Mi"
-      cpu: "200m"
-    limits:
       memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
       cpu: "500m"
 
 chatbotService:
   image:
     repository: bassembenabbes/ecommerce-chatbot-service
     tag: latest
-  replicas: 1
+  replicas: 2
   port: 8005
-  geminiApiKey: "your_key_here"
+  geminiApiKey: "CHANGE_THIS_TO_YOUR_GEMINI_API_KEY"
   resources:
     requests:
-      memory: "512Mi"
-      cpu: "300m"
-    limits:
       memory: "1Gi"
-      cpu: "800m"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
 
 apiGateway:
   image:
     repository: bassembenabbes/ecommerce-api-gateway
     tag: latest
-  replicas: 1
+  replicas: 3
   port: 8000
   resources:
     requests:
-      memory: "128Mi"
-      cpu: "100m"
-    limits:
       memory: "256Mi"
       cpu: "200m"
+    limits:
+      memory: "512Mi"
+      cpu: "400m"
 
 frontend:
   image:
     repository: bassembenabbes/ecommerce-frontend
     tag: latest
-  replicas: 1
+  replicas: 3
   port: 80
   resources:
     requests:
@@ -134,7 +143,7 @@ notificationService:
   image:
     repository: bassembenabbes/ecommerce-notification-service
     tag: latest
-  replicas: 1
+  replicas: 2
   port: 8004
   resources:
     requests:
@@ -144,12 +153,12 @@ notificationService:
       memory: "256Mi"
       cpu: "200m"
 
-# Ingress
+# Ingress - Production settings
 ingress:
   enabled: true
   className: nginx
   hosts:
-    - host: ecommerce.local
+    - host: ecommerce.yourdomain.com  # CHANGE THIS
       paths:
         - path: /
           pathType: Prefix
@@ -164,31 +173,38 @@ ingress:
   tls:
     - secretName: ecommerce-tls
       hosts:
-        - ecommerce.local
+        - ecommerce.yourdomain.com  # CHANGE THIS
 
-# Monitoring
+# Monitoring - Production settings
 prometheus:
   enabled: true
+  persistence:
+    enabled: true
+    size: 20Gi
 
 grafana:
   enabled: true
-  adminPassword: admin
+  adminPassword: "CHANGE_THIS_STRONG_PASSWORD"
+  persistence:
+    enabled: true
+    size: 10Gi
 
-# N8N Workflow Engine
+# N8N - Production settings
 n8n:
   enabled: true
   image:
     repository: n8nio/n8n
     tag: latest
   port: 5678
+  replicas: 1
   resources:
     requests:
-      memory: "256Mi"
-      cpu: "200m"
-    limits:
       memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
       cpu: "500m"
 
-# ArgoCD (for GitOps)
+# ArgoCD - For GitOps
 argocd:
-  enabled: false
+  enabled: false  # Set to true if deploying via ArgoCD

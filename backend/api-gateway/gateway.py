@@ -27,7 +27,7 @@ class ServiceRegistry:
     def __init__(self):
         self.services = SERVICES
         self.client = httpx.AsyncClient(timeout=30.0)
-    
+
     async def route_request(self, service_name: str, path: str, 
                            method: str, data: Dict = None, 
                            headers: Dict = None,
@@ -45,7 +45,7 @@ class ServiceRegistry:
         try:
             if headers and 'content-length' in headers:
                 del headers['content-length']
-            
+
             response = await self.client.request(
                 method=method,
                 url=url,
@@ -53,12 +53,12 @@ class ServiceRegistry:
                 headers=headers or {},
                 params=params or {}
             )
-            
+
             try:
                 response_data = response.json()
             except:
                 response_data = response.text
-            
+
             return {"status": response.status_code, "data": response_data}
         except httpx.TimeoutException:
             raise HTTPException(status_code=504, detail="Service timeout")
