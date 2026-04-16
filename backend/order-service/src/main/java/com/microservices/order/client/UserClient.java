@@ -3,6 +3,7 @@ package com.microservices.order.client;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import java.util.HashMap;
@@ -26,7 +27,7 @@ public class UserClient {
             Map<String, Object> response = webClient.get()
                     .uri("/api/users/{userId}", userId)
                     .retrieve()
-                    .bodyToMono(Map.class)
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                     .block();
             return response != null && !response.containsKey("error");
         } catch (Exception e) {
@@ -48,7 +49,7 @@ public class UserClient {
             return webClient.get()
                     .uri("/api/users/{userId}", userId)
                     .retrieve()
-                    .bodyToMono(Map.class)
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                     .block();
         } catch (Exception e) {
             log.error("Error getting user info: {}", e.getMessage());
