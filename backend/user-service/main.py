@@ -91,7 +91,7 @@ def decode_token(token: str) -> dict:
     return jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
 
 # Routes
-@app.get("/health")
+@app.get("/api/health")
 def health():
     return {"status": "healthy", "service": "user-service"}
 

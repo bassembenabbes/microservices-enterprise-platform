@@ -1,0 +1,189 @@
+version: "3.9"
+
+services:
+
+  # ================= DATABASES =================
+  postgres-user:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: users_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres-user-data:/var/lib/postgresql/data
+    networks: [microservices-net]
+    restart: unless-stopped
+
+  postgres-product:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: products_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres-product-data:/var/lib/postgresql/data
+    networks: [microservices-net]
+    restart: unless-stopped
+
+  postgres-order:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: orders_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres-order-data:/var/lib/postgresql/data
+    networks: [microservices-net]
+    restart: unless-stopped
+
+  postgres-vector:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: chatbot_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres-vector-data:/var/lib/postgresql/data
+    networks: [microservices-net]
+    restart: unless-stopped
+
+  # ================= CACHE =================
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --requirepass password
+    networks: [microservices-net]
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+  # ================= ELASTIC =================
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    networks: [microservices-net]
+    restart: unless-stopped
+
+  kibana:
+    image: kibana:8.11.0
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks: [microservices-net]
+    depends_on: [elasticsearch]
+
+  # ================= KAFKA =================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks: [microservices-net]
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks: [microservices-net]
+    depends_on: [zookeeper]
+
+  # ================= MICROSERVICES =================
+  user-service:
+    image: bassembenabbes/ecommerce-user-service:latest
+    networks: [microservices-net]
+    environment:
+      DATABASE_URL: postgresql://user:password@postgres-user:5432/users_db
+      REDIS_URL: redis://:password@redis:6379
+      JWT_SECRET: my-super-secret-key-change-me
+    depends_on: [postgres-user, redis]
+
+  product-service:
+    image: bassembenabbes/ecommerce-product-service:latest
+    networks: [microservices-net]
+    environment:
+      DB_HOST: postgres-product
+      DB_NAME: products_db
+      DB_USER: user
+      DB_PASSWORD: password
+      REDIS_URL: redis://:password@redis:6379
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      KAFKA_BROKERS: kafka:9092
+
+  order-service:
+    image: bassembenabbes/ecommerce-order-service:latest
+    networks: [microservices-net]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-order:5432/orders_db
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: password
+      REDIS_URL: redis://:password@redis:6379
+      N8N_WEBHOOK_URL: http://n8n:5678/webhook/order-created
+    depends_on: [postgres-order, redis]
+
+  notification-service:
+    image: bassembenabbes/ecommerce-notification-service:latest
+    networks: [microservices-net]
+    environment:
+      REDIS_URL: redis://:password@redis:6379
+    depends_on: [redis]
+
+  chatbot-service:
+    image: bassembenabbes/ecommerce-chatbot-service:latest
+    networks: [microservices-net]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-vector:5432/chatbot_db
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: password
+      GOOGLE_GEMINI_API_KEY: your_key_here
+      N8N_WEBHOOK_URL: http://n8n:5678/webhook
+    depends_on:
+      - postgres-vector
+      - n8n
+
+  # ================= N8N =================
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
+    networks: [microservices-net]
+    volumes:
+      - n8n-data:/home/node/.n8n
+
+  # ================= API GATEWAY =================
+  api-gateway:
+    image: bassembenabbes/ecommerce-api-gateway:latest
+    ports:
+      - "8000:8000"
+    networks: [microservices-net]
+    environment:
+      USER_SERVICE_URL: http://user-service:8001
+      PRODUCT_SERVICE_URL: http://product-service:8002
+      ORDER_SERVICE_URL: http://order-service:8003
+
+  # ================= FRONTEND =================
+  frontend:
+    image: bassembenabbes/ecommerce-frontend:latest
+    ports:
+      - "3000:80"
+    networks: [microservices-net]
+    depends_on: [api-gateway]
+
+# ================= NETWORK =================
+networks:
+  microservices-net:
+
+# ================= VOLUMES =================
+volumes:
+  postgres-user-data:
+  postgres-product-data:
+  postgres-order-data:
+  postgres-vector-data:
+  redis-data:
+  elasticsearch-data:
+  n8n-data:
