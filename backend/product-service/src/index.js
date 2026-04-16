@@ -167,7 +167,7 @@ app.post('/api/products', async (req, res) => {
     );
     
     console.log('✅ Product created successfully:', result.rows[0]);
-    
+      try {
     // Publish event to Kafka
     await producer.send({
       topic: 'product-events',
@@ -182,6 +182,9 @@ app.post('/api/products', async (req, res) => {
         }
       ]
     });
+      } catch (err) {
+          console.error("Kafka publish failed:", err.message);
+      }
     
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -302,7 +305,12 @@ app.delete('/api/products/:id', async (req, res) => {
 // Start server
 async function start() {
   await initDb();
-  await producer.connect();
+    try {
+        await producer.connect();
+        console.log("✅ Kafka connected");
+    } catch (err) {
+        console.error("⚠️ Kafka not available, continuing without Kafka");
+    }
   app.listen(port, () => {
     console.log(`✅ Product Service running on port ${port}`);
   });
