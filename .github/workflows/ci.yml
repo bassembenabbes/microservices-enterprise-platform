@@ -79,57 +79,58 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Log in to Docker Hub
+    - name: Log in to Docker Hub (if credentials available)
+      if: secrets.DOCKER_USERNAME != null && secrets.DOCKER_PASSWORD != null
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Build and push User Service
+    - name: Build User Service
       uses: docker/build-push-action@v5
       with:
         context: ./backend/user-service
-        push: true
-        tags: ${{ secrets.DOCKER_USERNAME }}/ecommerce-user-service:latest
+        push: ${{ secrets.DOCKER_USERNAME != null && secrets.DOCKER_PASSWORD != null }}
+        tags: ${{ secrets.DOCKER_USERNAME != null && format('{0}/ecommerce-user-service:latest', secrets.DOCKER_USERNAME) || 'ecommerce-user-service:latest' }}
 
-    - name: Build and push Product Service
+    - name: Build Product Service
       uses: docker/build-push-action@v5
       with:
         context: ./backend/product-service
-        push: true
-        tags: ${{ secrets.DOCKER_USERNAME }}/ecommerce-product-service:latest
+        push: ${{ secrets.DOCKER_USERNAME != null && secrets.DOCKER_PASSWORD != null }}
+        tags: ${{ secrets.DOCKER_USERNAME != null && format('{0}/ecommerce-product-service:latest', secrets.DOCKER_USERNAME) || 'ecommerce-product-service:latest' }}
 
-    - name: Build and push Order Service
+    - name: Build Order Service
       uses: docker/build-push-action@v5
       with:
         context: ./backend/order-service
-        push: true
-        tags: ${{ secrets.DOCKER_USERNAME }}/ecommerce-order-service:latest
+        push: ${{ secrets.DOCKER_USERNAME != null && secrets.DOCKER_PASSWORD != null }}
+        tags: ${{ secrets.DOCKER_USERNAME != null && format('{0}/ecommerce-order-service:latest', secrets.DOCKER_USERNAME) || 'ecommerce-order-service:latest' }}
 
-    - name: Build and push Chatbot Service
+    - name: Build Chatbot Service
       uses: docker/build-push-action@v5
       with:
         context: ./backend/chatbot-service
-        push: true
-        tags: ${{ secrets.DOCKER_USERNAME }}/ecommerce-chatbot-service:latest
+        push: ${{ secrets.DOCKER_USERNAME != null && secrets.DOCKER_PASSWORD != null }}
+        tags: ${{ secrets.DOCKER_USERNAME != null && format('{0}/ecommerce-chatbot-service:latest', secrets.DOCKER_USERNAME) || 'ecommerce-chatbot-service:latest' }}
 
-    - name: Build and push API Gateway
+    - name: Build API Gateway
       uses: docker/build-push-action@v5
       with:
         context: ./backend/api-gateway
-        push: true
-        tags: ${{ secrets.DOCKER_USERNAME }}/ecommerce-api-gateway:latest
+        push: ${{ secrets.DOCKER_USERNAME != null && secrets.DOCKER_PASSWORD != null }}
+        tags: ${{ secrets.DOCKER_USERNAME != null && format('{0}/ecommerce-api-gateway:latest', secrets.DOCKER_USERNAME) || 'ecommerce-api-gateway:latest' }}
 
-    - name: Build and push Frontend
+    - name: Build Frontend
       uses: docker/build-push-action@v5
       with:
         context: ./frontend
-        push: true
-        tags: ${{ secrets.DOCKER_USERNAME }}/ecommerce-frontend:latest
+        push: ${{ secrets.DOCKER_USERNAME != null && secrets.DOCKER_PASSWORD != null }}
+        tags: ${{ secrets.DOCKER_USERNAME != null && format('{0}/ecommerce-frontend:latest', secrets.DOCKER_USERNAME) || 'ecommerce-frontend:latest' }}
 
-    - name: Build and push Notification Service
+    - name: Build Notification Service
       uses: docker/build-push-action@v5
       with:
         context: ./backend/notification-service
-        push: true
-        tags: ${{ secrets.DOCKER_USERNAME }}/ecommerce-notification-service:latest
+        push: ${{ secrets.DOCKER_USERNAME != null && secrets.DOCKER_PASSWORD != null }}
+        tags: ${{ secrets.DOCKER_USERNAME != null && format('{0}/ecommerce-notification-service:latest', secrets.DOCKER_USERNAME) || 'ecommerce-notification-service:latest' }}

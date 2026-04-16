@@ -1,3 +1,19 @@
+
+You need to add the required GitHub secrets to your repository:
+
+    Go to your repository settings:
+        Navigate to Settings → Secrets and variables → Actions
+
+    Add two new secrets:
+        DOCKER_USERNAME: Your Docker Hub username
+        DOCKER_PASSWORD: Your Docker Hub password or personal access token
+
+    Best Practice: Instead of using your password, create a Docker Hub Personal Access Token:
+        Log into Docker Hub
+        Go to Account Settings → Security → New Access Token
+        Use this token as the password secret
+
+
 ✅ TESTS DE TOUS LES SERVICES - RÉSULTATS COMPLETS
 J'ai testé systématiquement tous les services du projet microservices e-commerce :
 🔧 Services Java (Spring Boot)
