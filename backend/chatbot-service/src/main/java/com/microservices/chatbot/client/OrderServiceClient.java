@@ -29,7 +29,7 @@ public class OrderServiceClient {
             return webClient.get()
                     .uri("/api/orders/{orderId}?userId={userId}", orderId, userId)
                     .retrieve()
-                    .bodyToMono(Map.class)
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                     .block();
         } catch (Exception e) {
             log.error("Error getting order status: {}", e.getMessage());
@@ -44,7 +44,7 @@ public class OrderServiceClient {
                     .uri("/api/orders")
                     .bodyValue(request)
                     .retrieve()
-                    .bodyToMono(Map.class)
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                     .block();
         } catch (Exception e) {
             log.error("Error creating order: {}", e.getMessage());

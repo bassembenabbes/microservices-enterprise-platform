@@ -29,6 +29,7 @@ public class ChatSession {
     @CollectionTable(name = "session_variables")
     @MapKeyColumn(name = "var_key")
     @Column(name = "var_value", length = 2000)
+    @Builder.Default
     private Map<String, String> variables = new HashMap<>();
     
     private LocalDateTime createdAt;

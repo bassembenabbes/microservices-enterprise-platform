@@ -156,6 +156,7 @@ public class OrderService {
             webhookItem.setSubtotal(item.getSubtotal());
             return webhookItem;
         }).collect(Collectors.toList()));
+        payload.setToken(request.getToken());
         
         // Call the n8n webhook URL
         webClient.post()
@@ -182,6 +183,7 @@ public class OrderService {
         private String email;
         private LocalDateTime createdAt;
         private List<WebhookItem> items;
+        private String token;
         
         // Getters and setters
         public String getOrderId() { return orderId; }
@@ -210,6 +212,8 @@ public class OrderService {
         public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
         public List<WebhookItem> getItems() { return items; }
         public void setItems(List<WebhookItem> items) { this.items = items; }
+        public String getToken() { return token; }
+        public void setToken(String token) { this.token = token; }
     }
     
     private static class WebhookItem {

@@ -8,6 +8,7 @@ import com.microservices.chatbot.dto.ChatRequest;
 import com.microservices.chatbot.dto.ChatResponse;
 import com.microservices.chatbot.dto.OrderItemRequest;
 import com.microservices.chatbot.dto.OrderRequest;
+import com.microservices.chatbot.util.InputSanitizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,6 +28,7 @@ public class ChatbotService {
     private final ProductServiceClient productClient;
     private final OrderServiceClient orderClient;
     private final GeminiClient geminiClient;
+    private final InputSanitizer inputSanitizer;
     
     @Value("${chatbot.use-gemini:true}")
     private boolean useGemini;
@@ -36,7 +38,18 @@ public class ChatbotService {
     public ChatResponse processMessage(ChatRequest request) {
         log.info("📨 Message reçu: {}", request.getMessage());
         
-        String message = request.getMessage().toLowerCase();
+        // Sanitize and validate input
+        String sanitizedMessage = inputSanitizer.sanitize(request.getMessage());
+        if (!inputSanitizer.isValidMessage(sanitizedMessage)) {
+            return ChatResponse.builder()
+                .response("Message invalide ou trop long.")
+                .sessionId(request.getSessionId())
+                .intent("INVALID")
+                .timestamp(LocalDateTime.now())
+                .build();
+        }
+        
+        String message = sanitizedMessage.toLowerCase();
         
         // Détection d'intention
         if (message.contains("iphone") || message.contains("produit") || 

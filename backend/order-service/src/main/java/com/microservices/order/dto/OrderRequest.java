@@ -10,6 +10,7 @@ public class OrderRequest {
     private String phoneNumber;
     private String paymentMethod;
     private String couponCode;
+    private String token;
     
     // Getters et Setters
     public String getUserId() { return userId; }
@@ -26,4 +27,6 @@ public class OrderRequest {
     public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
     public String getCouponCode() { return couponCode; }
     public void setCouponCode(String couponCode) { this.couponCode = couponCode; }
+    public String getToken() { return token; }
+    public void setToken(String token) { this.token = token; }
 }

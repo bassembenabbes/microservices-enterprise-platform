@@ -79,6 +79,7 @@ chatbot:
   use-gemini: ${USE_GEMINI:true}
   max-session-history: ${MAX_SESSION_HISTORY:50}
   session-timeout-seconds: ${SESSION_TIMEOUT:3600}
+  api-key: ${CHATBOT_API_KEY:}
 
 # Resilience4j Configuration
 resilience4j:

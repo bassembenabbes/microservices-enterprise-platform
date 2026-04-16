@@ -8,7 +8,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.MockBean;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -196,5 +197,14 @@ class ChatbotControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.intent").value("ORDER_STATUS"));
     }
-}
 
+    @org.springframework.boot.test.context.TestConfiguration
+    static class TestConfig {
+        @Bean
+        public com.microservices.chatbot.config.ChatbotConfig chatbotConfig() {
+            com.microservices.chatbot.config.ChatbotConfig config = new com.microservices.chatbot.config.ChatbotConfig();
+            // Set default values for testing
+            return config;
+        }
+    }
+}
