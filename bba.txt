@@ -1,7 +1,13 @@
 bba@bba-5580:~/Documents/Deepseek/mon_projet_microservices$ minikube start --driver=docker --memory=4096 --cpus=2
 
 
+docker compose -f docker-compose-prod.yml up -d
 
+ docker compose --env-file .env -f docker-compose-prod.yml up -d
+
+docker compose -f docker-compose-prod.yml logs -f product-service --tail=200
+
+ docker compose -f docker-compose-prod.yml pull
 
 You need to add the required GitHub secrets to your repository:
 
